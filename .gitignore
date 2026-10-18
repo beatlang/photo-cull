@@ -3,12 +3,12 @@ obj/
 .vs/
 *.user
 *.suo
-**/bin/
-**/obj/
 
-# VS Code (share launch/tasks, ignore the rest)`n.vscode/*`n!.vscode/launch.json`n!.vscode/tasks.json
+# VS Code (share launch/tasks, ignore the rest)
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
 
 # Local models
 models/
 *.onnx
-
