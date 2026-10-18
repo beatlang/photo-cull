@@ -127,8 +127,8 @@
                 </Grid.RowDefinitions>
                 <Grid x:Name="PreviewHost">
                     <ScrollViewer x:Name="ImageScroll" HorizontalScrollBarVisibility="Auto"
-                                  VerticalScrollBarVisibility="Auto">
-                        <Image x:Name="MainImage" Stretch="Uniform" MaxHeight="640"/>
+                                  VerticalScrollBarVisibility="Auto" ZoomMode="Enabled" MinZoomFactor="0.1">
+                        <Image x:Name="MainImage" Stretch="Uniform"/>
                     </ScrollViewer>
                     <Grid x:Name="CompareGrid" Visibility="Collapsed" ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
@@ -137,13 +137,13 @@
                         </Grid.ColumnDefinitions>
                         <Border Grid.Column="0" Style="{StaticResource PanelStyle}" Padding="4">
                             <ScrollViewer x:Name="CompareLeft" HorizontalScrollBarVisibility="Auto"
-                                          VerticalScrollBarVisibility="Auto">
+                                          VerticalScrollBarVisibility="Auto" ZoomMode="Enabled" MinZoomFactor="0.1">
                                 <Image x:Name="CompareLeftImage" Stretch="Uniform"/>
                             </ScrollViewer>
                         </Border>
                         <Border Grid.Column="1" Style="{StaticResource PanelStyle}" Padding="4">
                             <ScrollViewer x:Name="CompareRight" HorizontalScrollBarVisibility="Auto"
-                                          VerticalScrollBarVisibility="Auto">
+                                          VerticalScrollBarVisibility="Auto" ZoomMode="Enabled" MinZoomFactor="0.1">
                                 <Image x:Name="CompareRightImage" Stretch="Uniform"/>
                             </ScrollViewer>
                         </Border>

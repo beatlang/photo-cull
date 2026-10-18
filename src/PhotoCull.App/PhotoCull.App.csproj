@@ -17,7 +17,7 @@
     <PackageReference Include="Serilog" Version="4.4.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="4.1.2" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PhotoCull.Core\PhotoCull.Core.csproj" />
@@ -25,4 +25,3 @@
     <ProjectReference Include="..\PhotoCull.Ai\PhotoCull.Ai.csproj" />
   </ItemGroup>
 </Project>
-

@@ -53,6 +53,9 @@ namespace PhotoCull.App
             DeleteBtn.Click += async (_, __) => await ShowDeleteDialog();
             CompareLeft.ViewChanged += Compare_ViewChanged_Left;
             CompareRight.ViewChanged += Compare_ViewChanged_Right;
+            MainImage.ImageOpened += (_, _) => FitImageToViewport(ImageScroll, MainImage);
+            CompareLeftImage.ImageOpened += (_, _) => FitImageToViewport(CompareLeft, CompareLeftImage);
+            CompareRightImage.ImageOpened += (_, _) => FitImageToViewport(CompareRight, CompareRightImage);
 
             VM?.UpdateClusterOptions(_cullingSettings.ToClusterOptions());
             UpdateSettingsButton();
@@ -129,12 +132,40 @@ namespace PhotoCull.App
                 return;
             }
 
-            MainImage.Source = CreateBitmap(selected.ThumbnailUri);
-            var best = VM?.SelectedSet?.Members.FirstOrDefault(m => m.IsBestShot) ?? selected;
-            CompareLeftImage.Source = CreateBitmap(best.ThumbnailUri);
-            CompareRightImage.Source = CreateBitmap(selected.ThumbnailUri);
+            if (CompareGrid.Visibility == Visibility.Visible)
+            {
+                MainImage.Source = null;
+                var best = VM?.SelectedSet?.Members.FirstOrDefault(m => m.IsBestShot) ?? selected;
+                SetPreviewSource(CompareLeft, CompareLeftImage, best.Path);
+                SetPreviewSource(CompareRight, CompareRightImage, selected.Path);
+            }
+            else
+            {
+                CompareLeftImage.Source = null;
+                CompareRightImage.Source = null;
+                ImageScroll.ChangeView(null, null, 1f, true);
+                MainImage.Source = CreateBitmap(selected.Path);
+            }
             FileNameText.Text = selected.FileName;
             InfoText.Text = selected.InfoLine;
+        }
+
+        private static void SetPreviewSource(ScrollViewer viewer, Image image, string path)
+        {
+            viewer.ChangeView(null, null, 1f, true);
+            image.Source = CreateBitmap(path);
+        }
+
+        private static void FitImageToViewport(ScrollViewer viewer, Image image)
+        {
+            if (image.ActualWidth <= 0 || image.ActualHeight <= 0 ||
+                viewer.ActualWidth <= 0 || viewer.ActualHeight <= 0)
+                return;
+
+            var fitFactor = (float)Math.Min(
+                viewer.ActualWidth / image.ActualWidth,
+                viewer.ActualHeight / image.ActualHeight);
+            viewer.ZoomToFactor(Math.Clamp(fitFactor, viewer.MinZoomFactor, viewer.MaxZoomFactor));
         }
 
         private static BitmapImage? CreateBitmap(string? path)
