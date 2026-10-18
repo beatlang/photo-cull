@@ -49,4 +49,22 @@ namespace PhotoCull.App
         public object ConvertBack(object value, Type targetType, object parameter, string language)
             => value is Visibility visibility && visibility == Visibility.Visible;
     }
+
+    public sealed class MatchStatusBrushConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, string language)
+        {
+            var color = value?.ToString() switch
+            {
+                "Connected" => Colors.IndianRed,
+                "Not matched" => Colors.MediumSeaGreen,
+                "Skipped" => Colors.DodgerBlue,
+                _ => Colors.Gray
+            };
+            return new SolidColorBrush(color);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, string language)
+            => throw new NotSupportedException();
+    }
 }

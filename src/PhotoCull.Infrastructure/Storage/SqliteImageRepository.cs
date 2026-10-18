@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using PhotoCull.Core;
 using PhotoCull.Core.Abstractions;
+using PhotoCull.Core.Culling;
 
 namespace PhotoCull.Infrastructure.Storage
 {
@@ -99,6 +100,25 @@ CREATE TABLE IF NOT EXISTS SetMembers (
     FOREIGN KEY(ImageId) REFERENCES Images(Id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS SetMatches (
+    SetId INTEGER NOT NULL,
+    ImageId INTEGER NOT NULL,
+    MatchedImageId INTEGER NOT NULL,
+    CaptureTimeDifferenceSeconds REAL,
+    BurstWindowSeconds REAL,
+    PHashDistance INTEGER,
+    PHashThreshold INTEGER,
+    DHashDistance INTEGER,
+    DHashThreshold INTEGER,
+    EmbeddingCosineSimilarity REAL,
+    EmbeddingCosineThreshold REAL,
+    EvaluatedCriteria INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY(SetId, ImageId, MatchedImageId),
+    FOREIGN KEY(SetId) REFERENCES Sets(Id) ON DELETE CASCADE,
+    FOREIGN KEY(ImageId) REFERENCES Images(Id) ON DELETE CASCADE,
+    FOREIGN KEY(MatchedImageId) REFERENCES Images(Id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS UserDecisions (
     ImageId INTEGER PRIMARY KEY,
     Action TEXT,
@@ -106,6 +126,24 @@ CREATE TABLE IF NOT EXISTS UserDecisions (
 );
 ";
             cmd.ExecuteNonQuery();
+            EnsureColumn(conn, "SetMatches", "EvaluatedCriteria", "INTEGER NOT NULL DEFAULT 0");
+        }
+
+        private static void EnsureColumn(SqliteConnection connection, string tableName, string columnName, string definition)
+        {
+            using var cmd = connection.CreateCommand();
+            cmd.CommandText = $"PRAGMA table_info({tableName})";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                if (string.Equals(reader.GetString(1), columnName, StringComparison.OrdinalIgnoreCase))
+                    return;
+            }
+            reader.Close();
+
+            using var alter = connection.CreateCommand();
+            alter.CommandText = $"ALTER TABLE {tableName} ADD COLUMN {columnName} {definition}";
+            alter.ExecuteNonQuery();
         }
 
         public async Task<long> UpsertImageAsync(string path, long sizeBytes, int width, int height, string format, DateTime createdUtc, DateTime modifiedUtc)
@@ -296,7 +334,11 @@ CREATE TABLE IF NOT EXISTS UserDecisions (
             using var tx = conn.BeginTransaction();
             using var cmd = conn.CreateCommand();
             cmd.Transaction = tx;
-            cmd.CommandText = @"INSERT OR REPLACE INTO Hashes (ImageId, PHash, DHash, AHash) VALUES (@id,@p,@d,@a)";
+            cmd.CommandText = @"INSERT INTO Hashes (ImageId, PHash, DHash, AHash) VALUES (@id,@p,@d,@a)
+                ON CONFLICT(ImageId) DO UPDATE SET
+                    PHash = COALESCE(excluded.PHash, Hashes.PHash),
+                    DHash = COALESCE(excluded.DHash, Hashes.DHash),
+                    AHash = COALESCE(excluded.AHash, Hashes.AHash)";
             cmd.Parameters.AddWithValue("@id", imageId);
             cmd.Parameters.AddWithValue("@p", pHash.HasValue ? (object)pHash.Value : DBNull.Value);
             cmd.Parameters.AddWithValue("@d", dHash.HasValue ? (object)dHash.Value : DBNull.Value);
@@ -336,10 +378,77 @@ CREATE TABLE IF NOT EXISTS UserDecisions (
             tx.Commit();
         }
 
+        public async Task SaveSetMatchesAsync(long setId, IEnumerable<ClusterMatch> matches)
+        {
+            using var conn = GetConnection();
+            using var tx = conn.BeginTransaction();
+            foreach (var match in matches)
+            {
+                using var cmd = conn.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandText = @"INSERT OR REPLACE INTO SetMatches (
+                    SetId, ImageId, MatchedImageId, CaptureTimeDifferenceSeconds, BurstWindowSeconds,
+                    PHashDistance, PHashThreshold, DHashDistance, DHashThreshold,
+                    EmbeddingCosineSimilarity, EmbeddingCosineThreshold, EvaluatedCriteria)
+                    VALUES (@set,@image,@matched,@timeDiff,@timeWindow,@pHashDist,@pHashThreshold,
+                    @dHashDist,@dHashThreshold,@embedding,@embeddingThreshold,@evaluated)";
+                cmd.Parameters.AddWithValue("@set", setId);
+                cmd.Parameters.AddWithValue("@image", match.ImageId);
+                cmd.Parameters.AddWithValue("@matched", match.MatchedImageId);
+                cmd.Parameters.AddWithValue("@timeDiff", DbValue(match.CaptureTimeDifferenceSeconds));
+                cmd.Parameters.AddWithValue("@timeWindow", DbValue(match.BurstWindowSeconds));
+                cmd.Parameters.AddWithValue("@pHashDist", DbValue(match.PHashDistance));
+                cmd.Parameters.AddWithValue("@pHashThreshold", DbValue(match.PHashThreshold));
+                cmd.Parameters.AddWithValue("@dHashDist", DbValue(match.DHashDistance));
+                cmd.Parameters.AddWithValue("@dHashThreshold", DbValue(match.DHashThreshold));
+                cmd.Parameters.AddWithValue("@embedding", DbValue(match.EmbeddingCosineSimilarity));
+                cmd.Parameters.AddWithValue("@embeddingThreshold", DbValue(match.EmbeddingCosineThreshold));
+                cmd.Parameters.AddWithValue("@evaluated", (int)match.EvaluatedCriteria);
+                await cmd.ExecuteNonQueryAsync();
+            }
+            tx.Commit();
+        }
+
+        public async Task<IEnumerable<ClusterMatch>> LoadSetMatchesAsync(long setId)
+        {
+            var matches = new List<ClusterMatch>();
+            using var conn = GetConnection();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"SELECT ImageId, MatchedImageId, CaptureTimeDifferenceSeconds, BurstWindowSeconds,
+                PHashDistance, PHashThreshold, DHashDistance, DHashThreshold,
+                EmbeddingCosineSimilarity, EmbeddingCosineThreshold, EvaluatedCriteria
+                FROM SetMatches WHERE SetId=@set ORDER BY ImageId, MatchedImageId";
+            cmd.Parameters.AddWithValue("@set", setId);
+            using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+            {
+                matches.Add(new ClusterMatch(
+                    rdr.GetInt64(0),
+                    rdr.GetInt64(1),
+                    ReadNullableDouble(rdr, 2),
+                    ReadNullableDouble(rdr, 3),
+                    ReadNullableInt(rdr, 4),
+                    ReadNullableInt(rdr, 5),
+                    ReadNullableInt(rdr, 6),
+                    ReadNullableInt(rdr, 7),
+                    ReadNullableDouble(rdr, 8),
+                    ReadNullableDouble(rdr, 9),
+                    (ClusterCriterionEvaluation)rdr.GetInt32(10)));
+            }
+            return matches;
+        }
+
         public Task ClearSetsAsync()
         {
             using var conn = GetConnection();
             using var tx = conn.BeginTransaction();
+            using (var matchesCmd = conn.CreateCommand())
+            {
+                matchesCmd.Transaction = tx;
+                matchesCmd.CommandText = "DELETE FROM SetMatches";
+                matchesCmd.ExecuteNonQuery();
+            }
+
             using (var membersCmd = conn.CreateCommand())
             {
                 membersCmd.Transaction = tx;
@@ -357,6 +466,14 @@ CREATE TABLE IF NOT EXISTS UserDecisions (
             tx.Commit();
             return Task.CompletedTask;
         }
+
+        private static object DbValue<T>(T? value) where T : struct => value.HasValue ? value.Value : DBNull.Value;
+
+        private static double? ReadNullableDouble(Microsoft.Data.Sqlite.SqliteDataReader reader, int ordinal)
+            => reader.IsDBNull(ordinal) ? null : reader.GetDouble(ordinal);
+
+        private static int? ReadNullableInt(Microsoft.Data.Sqlite.SqliteDataReader reader, int ordinal)
+            => reader.IsDBNull(ordinal) ? null : reader.GetInt32(ordinal);
 
         public async Task<IEnumerable<SetInfo>> ListSetsAsync()
         {

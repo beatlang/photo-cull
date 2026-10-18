@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PhotoCull.Core;
 using PhotoCull.Core.Abstractions;
+using PhotoCull.Core.Culling;
 using PhotoCull.Infrastructure.Pipeline;
 using System.Collections.ObjectModel;
 using System.Threading;
@@ -10,6 +11,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 
 namespace PhotoCull.App.ViewModels
 {
@@ -19,6 +21,7 @@ namespace PhotoCull.App.ViewModels
         private readonly IImageRepository _repo;
         private readonly IThumbnailService _thumb;
         private readonly IDeletionService _deleter;
+        private ClusterOptions _clusterOptions = new();
         private CancellationTokenSource? _cts;
 
         public ObservableCollection<SetViewModel> Sets { get; } = new();
@@ -30,12 +33,26 @@ namespace PhotoCull.App.ViewModels
             set
             {
                 if (SetProperty(ref _selectedSet, value))
+                {
                     SelectedImage = value?.Members.FirstOrDefault(m => m.IsBestShot) ?? value?.Members.FirstOrDefault();
+                    UpdateSelectedImageMatchReasons();
+                }
             }
         }
 
         private ImageViewModel? _selectedImage;
-        public ImageViewModel? SelectedImage { get => _selectedImage; set => SetProperty(ref _selectedImage, value); }
+        public ImageViewModel? SelectedImage
+        {
+            get => _selectedImage;
+            set
+            {
+                if (SetProperty(ref _selectedImage, value))
+                    UpdateSelectedImageMatchReasons();
+            }
+        }
+
+        public ObservableCollection<GroupingMatchViewModel> SelectedImageMatchReasons { get; } = new();
+        public string MatchDetailsStatus { get; private set; } = "Select a photo in a set to see why it was grouped.";
 
         private double _progress;
         public double Progress { get => _progress; set => SetProperty(ref _progress, value); }
@@ -75,7 +92,7 @@ namespace PhotoCull.App.ViewModels
                     StatusText = $"Scanning... {completed}/{p.Scanned}";
                 });
 
-                await _pipeline.RunAsync(folder, cache, progress, _cts.Token);
+                await _pipeline.RunAsync(folder, cache, progress, _cts.Token, _clusterOptions);
                 await LoadSetsAsync();
                 StatusText = "Scan complete";
             }
@@ -87,6 +104,11 @@ namespace PhotoCull.App.ViewModels
         public void CancelScan()
         {
             _cts?.Cancel();
+        }
+
+        public void UpdateClusterOptions(ClusterOptions options)
+        {
+            _clusterOptions = options ?? throw new ArgumentNullException(nameof(options));
         }
 
         public async Task LoadSetsAsync()
@@ -107,6 +129,8 @@ namespace PhotoCull.App.ViewModels
                 }
 
                 var svm = new SetViewModel(s.Id, $"Set {Sets.Count + 1} · {members.Count} photos");
+                foreach (var match in await _repo.LoadSetMatchesAsync(s.Id))
+                    svm.Matches.Add(match);
                 foreach (var m in members)
                 {
                     try
@@ -151,6 +175,94 @@ namespace PhotoCull.App.ViewModels
             var count = Sets.SelectMany(s => s.Members)
                 .Count(m => m.Recommendation == Recommendation.Delete);
             Summary = $"{Sets.Count} sets to review · {count} photos recommended for deletion";
+        }
+
+        private void UpdateSelectedImageMatchReasons()
+        {
+            SelectedImageMatchReasons.Clear();
+            if (SelectedImage == null || SelectedSet == null)
+            {
+                MatchDetailsStatus = "Select a photo in a set to see why it was grouped.";
+                OnPropertyChanged(nameof(MatchDetailsStatus));
+                return;
+            }
+
+            foreach (var match in SelectedSet.Matches.Where(m => m.ImageId == SelectedImage.Id || m.MatchedImageId == SelectedImage.Id))
+            {
+                var otherId = match.ImageId == SelectedImage.Id ? match.MatchedImageId : match.ImageId;
+                var other = SelectedSet.Members.FirstOrDefault(member => member.Id == otherId);
+                if (other == null) continue;
+
+                bool hasEvaluationDetails = match.EvaluatedCriteria != ClusterCriterionEvaluation.None;
+                var explanation = new GroupingMatchViewModel(other.FileName);
+                explanation.Criteria.Add(CreateCriterion(
+                    "Capture time",
+                    match.CaptureTimeDifferenceSeconds,
+                    match.BurstWindowSeconds,
+                    hasEvaluationDetails,
+                    match.EvaluatedCriteria.HasFlag(ClusterCriterionEvaluation.CaptureTime),
+                    "<=",
+                    (difference, threshold) => difference <= threshold,
+                    "s"));
+                explanation.Criteria.Add(CreateCriterion(
+                    "dHash",
+                    match.DHashDistance,
+                    match.DHashThreshold,
+                    hasEvaluationDetails,
+                    match.EvaluatedCriteria.HasFlag(ClusterCriterionEvaluation.DHash),
+                    "<=",
+                    (distance, threshold) => distance <= threshold,
+                    "bits"));
+                explanation.Criteria.Add(CreateCriterion(
+                    "pHash",
+                    match.PHashDistance,
+                    match.PHashThreshold,
+                    hasEvaluationDetails,
+                    match.EvaluatedCriteria.HasFlag(ClusterCriterionEvaluation.PHash),
+                    "<=",
+                    (distance, threshold) => distance <= threshold,
+                    "bits"));
+                explanation.Criteria.Add(CreateCriterion(
+                    "AI similarity",
+                    match.EmbeddingCosineSimilarity,
+                    match.EmbeddingCosineThreshold,
+                    hasEvaluationDetails,
+                    match.EvaluatedCriteria.HasFlag(ClusterCriterionEvaluation.Embedding),
+                    ">=",
+                    (similarity, threshold) => similarity >= threshold,
+                    string.Empty));
+                SelectedImageMatchReasons.Add(explanation);
+            }
+
+            MatchDetailsStatus = SelectedImageMatchReasons.Count == 0
+                ? "No match details stored. Scan the folder again to calculate them."
+                : "This photo is directly connected to the following set members:";
+            OnPropertyChanged(nameof(MatchDetailsStatus));
+        }
+
+        private static GroupingCriterionViewModel CreateCriterion(
+            string name,
+            double? value,
+            double? threshold,
+            bool hasEvaluationDetails,
+            bool evaluated,
+            string comparison,
+            Func<double, double, bool> matches,
+            string unit)
+        {
+            if (!hasEvaluationDetails)
+                return new GroupingCriterionViewModel(name, "Rescan to calculate", false, false, "Rescan needed");
+            if (!evaluated)
+                return new GroupingCriterionViewModel(name, "Skipped after earlier match", false, false, "Skipped");
+            if (!threshold.HasValue)
+                return new GroupingCriterionViewModel(name, "Threshold unavailable", false, false, "Unavailable");
+            if (!value.HasValue)
+                return new GroupingCriterionViewModel(name, "Not available", false, false);
+
+            var measurement = string.IsNullOrEmpty(unit)
+                ? $"{value.Value.ToString("0.##", CultureInfo.CurrentCulture)} {comparison} {threshold.Value.ToString("0.##", CultureInfo.CurrentCulture)}"
+                : $"{value.Value.ToString("0.##", CultureInfo.CurrentCulture)} {unit} {comparison} {threshold.Value.ToString("0.##", CultureInfo.CurrentCulture)} {unit}";
+            return new GroupingCriterionViewModel(name, measurement, true, matches(value.Value, threshold.Value));
         }
 
         [RelayCommand]

@@ -27,7 +27,6 @@ namespace PhotoCull.Infrastructure.Pipeline
         private readonly IQualityAnalyzer _qualityAnalyzer;
         private readonly IEmbeddingService? _embeddingService;
         private readonly IImageRepository _imageRepo;
-        private readonly Clusterer _clusterer;
         private readonly Ranker _ranker;
 
         public CullingPipeline(IFolderScanner scanner,
@@ -45,14 +44,15 @@ namespace PhotoCull.Infrastructure.Pipeline
             _qualityAnalyzer = qualityAnalyzer;
             _embeddingService = embeddingService;
             _imageRepo = imageRepo;
-            _clusterer = new Clusterer();
             _ranker = new Ranker();
         }
 
-        public async Task RunAsync(string folder, string cacheDirectory, IProgress<PipelineProgress>? progress = null, CancellationToken cancellationToken = default)
+        public async Task RunAsync(string folder, string cacheDirectory, IProgress<PipelineProgress>? progress = null, CancellationToken cancellationToken = default, ClusterOptions? clusterOptions = null)
         {
             var p = new PipelineProgress();
             var features = new List<ImageFeatures>();
+            var featuresById = new Dictionary<long, ImageFeatures>();
+            var imagePaths = new Dictionary<long, string>();
             var qualities = new Dictionary<long, QualityMetrics>();
 
             await foreach (var img in _scanner.ScanAsync(folder, cancellationToken))
@@ -73,29 +73,16 @@ namespace PhotoCull.Infrastructure.Pipeline
                     }
                     catch { /* swallow thumbnail errors */ }
 
-                    // EXIF and hashes - best-effort
+                    // Capture time - best-effort. Similarity features are loaded lazily after timestamp checks.
                     ExifInfo? exif = null;
-                    ulong? pHash = null;
-                    ulong? dHash = null;
-                    ulong? aHash = null;
                     try
                     {
                         using var fs = File.OpenRead(img.Path);
                         exif = _exifReader.ReadExif(fs);
-                        if (fs.CanSeek) fs.Position = 0;
-
-                        aHash = _hashService.ComputeAHash(fs);
-                        if (fs.CanSeek) fs.Position = 0;
-                        dHash = _hashService.ComputeDHash(fs);
-                        if (fs.CanSeek) fs.Position = 0;
-                        pHash = _hashService.ComputePHash(fs);
-
-                        await _imageRepo.SaveHashesAsync(imageId, pHash.HasValue ? (long)pHash.Value : null,
-                            dHash.HasValue ? (long)dHash.Value : null, aHash.HasValue ? (long)aHash.Value : null);
                     }
                     catch
                     {
-                        // tolerate hash/exif errors
+                        // tolerate metadata errors
                     }
 
                     // quality
@@ -111,25 +98,10 @@ namespace PhotoCull.Infrastructure.Pipeline
                         // tolerate
                     }
 
-                    // embeddings optional
-                    float[]? embedding = null;
-                    if (_embeddingService != null)
-                    {
-                        try
-                        {
-                            using var fsb = File.OpenRead(img.Path);
-                            embedding = await _embeddingService.CreateEmbeddingAsync(fsb, cancellationToken);
-                            if (embedding != null)
-                                await _imageRepo.SaveEmbeddingAsync(imageId, embedding);
-                        }
-                        catch
-                        {
-                            // tolerate
-                        }
-                    }
-
-                    var feat = new ImageFeatures(imageId, exif?.CaptureTime, pHash, dHash, aHash, embedding);
+                    var feat = new ImageFeatures(imageId, exif?.CaptureTime, null, null, null, null);
                     features.Add(feat);
+                    featuresById.Add(imageId, feat);
+                    imagePaths.Add(imageId, img.Path);
 
                     p.Processed++;
                     progress?.Report(p);
@@ -143,7 +115,9 @@ namespace PhotoCull.Infrastructure.Pipeline
             }
 
             // cluster & rank
-            var clusters = _clusterer.Cluster(features);
+            var clusterer = new Clusterer(clusterOptions);
+            var clusterResult = await clusterer.ClusterDetailedAsync(features, LoadClusterFeatureAsync, cancellationToken);
+            var clusters = clusterResult.Clusters;
             var ranked = _ranker.Rank(clusters, qualities);
 
             // persist sets
@@ -155,6 +129,53 @@ namespace PhotoCull.Infrastructure.Pipeline
                 long setId = await _imageRepo.CreateSetAsync(name);
                 var members = ranked.Where(m => cluster.Contains(m.ImageId));
                 await _imageRepo.SaveSetMembersAsync(setId, members);
+                var matches = clusterResult.Matches.Where(match =>
+                    cluster.Contains(match.ImageId) && cluster.Contains(match.MatchedImageId));
+                await _imageRepo.SaveSetMatchesAsync(setId, matches);
+            }
+
+            async Task<ImageFeatures> LoadClusterFeatureAsync(long imageId, ClusterFeatureStage stage, CancellationToken token)
+            {
+                token.ThrowIfCancellationRequested();
+                var current = featuresById[imageId];
+                var path = imagePaths[imageId];
+
+                switch (stage)
+                {
+                    case ClusterFeatureStage.DHash:
+                    {
+                        using var stream = File.OpenRead(path);
+                        var hash = _hashService.ComputeDHash(stream);
+                        var updated = current with { DHash = hash };
+                        featuresById[imageId] = updated;
+                        await _imageRepo.SaveHashesAsync(imageId, null, unchecked((long)hash), null);
+                        return updated;
+                    }
+                    case ClusterFeatureStage.PHash:
+                    {
+                        using var stream = File.OpenRead(path);
+                        var hash = _hashService.ComputePHash(stream);
+                        var updated = current with { PHash = hash };
+                        featuresById[imageId] = updated;
+                        await _imageRepo.SaveHashesAsync(imageId, unchecked((long)hash), null, null);
+                        return updated;
+                    }
+                    case ClusterFeatureStage.Embedding:
+                    {
+                        if (_embeddingService == null)
+                            return current;
+
+                        using var stream = File.OpenRead(path);
+                        var embedding = await _embeddingService.CreateEmbeddingAsync(stream, token);
+                        var updated = current with { Embedding = embedding };
+                        featuresById[imageId] = updated;
+                        if (embedding.Length > 0)
+                            await _imageRepo.SaveEmbeddingAsync(imageId, embedding);
+                        return updated;
+                    }
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(stage));
+                }
             }
         }
     }

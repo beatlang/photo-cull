@@ -2,8 +2,10 @@ using Microsoft.UI.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using System;
+using System.Collections.Generic;
 using PhotoCull.Infrastructure;
 using PhotoCull.App.ViewModels;
+using PhotoCull.App.Settings;
 
 namespace PhotoCull.App
 {
@@ -11,7 +13,9 @@ namespace PhotoCull.App
     {
         public IServiceProvider Services { get; private set; }
         private readonly string _modelPath;
-        private string? _startupError;
+        private readonly List<string> _startupErrors = new();
+        private readonly CullingSettingsStore _settingsStore;
+        public CullingSettings CullingSettings { get; set; } = new();
 
         public App()
         {
@@ -28,6 +32,18 @@ namespace PhotoCull.App
             var services = new ServiceCollection();
             services.AddPhotoCull();
 
+            var settingsPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PhotoCull", "settings.json");
+            _settingsStore = new CullingSettingsStore(settingsPath);
+            try
+            {
+                CullingSettings = _settingsStore.Load();
+            }
+            catch (Exception ex)
+            {
+                _startupErrors.Add($"Culling settings could not be loaded:{Environment.NewLine}{settingsPath}{Environment.NewLine}{Environment.NewLine}{ex.Message}");
+                Log.Logger.Error(ex, "Failed to load culling settings from {SettingsPath}", settingsPath);
+            }
+
             var configuredModelPath = Environment.GetEnvironmentVariable("PHOTOCULL_MODEL");
             _modelPath = string.IsNullOrWhiteSpace(configuredModelPath)
                 ? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PhotoCull", "models", "siglip-vision.onnx")
@@ -35,7 +51,7 @@ namespace PhotoCull.App
 
             if (!System.IO.File.Exists(_modelPath))
             {
-                _startupError = $"The required AI model was not found at:{Environment.NewLine}{_modelPath}{Environment.NewLine}{Environment.NewLine}Download it with scripts\\download-models.ps1, then restart PhotoCull, or set PHOTOCULL_MODEL to a valid ONNX model file.";
+                _startupErrors.Add($"The required AI model was not found at:{Environment.NewLine}{_modelPath}{Environment.NewLine}{Environment.NewLine}Download it with scripts\\download-models.ps1, then restart PhotoCull, or set PHOTOCULL_MODEL to a valid ONNX model file.");
                 Log.Logger.Error("Required ONNX model not found at {Model}", _modelPath);
             }
             else
@@ -50,7 +66,7 @@ namespace PhotoCull.App
                 }
                 catch (Exception ex)
                 {
-                    _startupError = $"The required AI model could not be loaded from:{Environment.NewLine}{_modelPath}{Environment.NewLine}{Environment.NewLine}{ex.Message}";
+                    _startupErrors.Add($"The required AI model could not be loaded from:{Environment.NewLine}{_modelPath}{Environment.NewLine}{Environment.NewLine}{ex.Message}");
                     Log.Logger.Error(ex, "Failed to load required ONNX model from {Model}", _modelPath);
                 }
             }
@@ -63,7 +79,10 @@ namespace PhotoCull.App
 
         protected override void OnLaunched(LaunchActivatedEventArgs args)
         {
-            var wnd = new MainWindow(_startupError);
+            var wnd = new MainWindow(
+                _startupErrors.Count == 0 ? null : string.Join($"{Environment.NewLine}{Environment.NewLine}", _startupErrors),
+                _settingsStore,
+                CullingSettings);
             wnd.Activate();
         }
     }

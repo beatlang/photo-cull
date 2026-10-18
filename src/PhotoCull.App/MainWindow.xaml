@@ -10,6 +10,7 @@
         <local:ScoreConverter x:Key="ScoreConverter"/>
         <local:DecisionBrushConverter x:Key="DecisionBrushConverter"/>
         <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <local:MatchStatusBrushConverter x:Key="MatchStatusBrushConverter"/>
         <Style x:Key="PanelStyle" TargetType="Border">
             <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
             <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
@@ -52,6 +53,10 @@
                             VerticalAlignment="Center" Spacing="16">
                     <TextBlock Text="{Binding Summary}" VerticalAlignment="Center"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <Button x:Name="SettingsBtn" ToolTipService.ToolTip="Configure photo grouping">
+                        <SymbolIcon Symbol="Setting"/>
+                        <AutomationProperties.Name>Grouping settings</AutomationProperties.Name>
+                    </Button>
                     <Button x:Name="DeleteBtn" Content="Delete marked ("
                             Background="{ThemeResource AccentFillColorDefaultBrush}"
                             Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
@@ -196,7 +201,8 @@
             </Grid>
 
             <Border Grid.Column="2" Style="{StaticResource PanelStyle}" Padding="16">
-                <StackPanel Spacing="12">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                  <StackPanel Spacing="12">
                     <TextBlock Text="Photo details" FontSize="18" FontWeight="SemiBold"/>
                     <TextBlock x:Name="FileNameText" Text="No photo selected" FontSize="16"
                                TextWrapping="Wrap" FontWeight="SemiBold"/>
@@ -212,7 +218,73 @@
                     <ProgressBar Maximum="100" Value="{Binding SelectedImage.Scores.Noise, Converter={StaticResource ScoreConverter}}"/>
                     <TextBlock Text="Quality"/>
                     <ProgressBar Maximum="100" Value="{Binding SelectedImage.Scores.Quality, Converter={StaticResource ScoreConverter}}"/>
-                </StackPanel>
+                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+                    <TextBlock Text="Why is this photo in the set?" FontWeight="SemiBold"
+                               AutomationProperties.Name="Grouping criteria for selected photo"/>
+                    <TextBlock Text="{Binding MatchDetailsStatus}" TextWrapping="Wrap"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <Ellipse Width="9" Height="9" Fill="IndianRed" VerticalAlignment="Center"/>
+                            <TextBlock Text="Connected" FontSize="11"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <Ellipse Width="9" Height="9" Fill="MediumSeaGreen" VerticalAlignment="Center"/>
+                            <TextBlock Text="Not matched" FontSize="11"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <Ellipse Width="9" Height="9" Fill="Gray" VerticalAlignment="Center"/>
+                            <TextBlock Text="Unavailable" FontSize="11"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <Ellipse Width="9" Height="9" Fill="DodgerBlue" VerticalAlignment="Center"/>
+                            <TextBlock Text="Skipped" FontSize="11"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding SelectedImageMatchReasons}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                        BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,8">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{Binding FileName}" FontWeight="SemiBold"
+                                                   TextWrapping="Wrap" FontSize="14"/>
+                                        <ItemsControl ItemsSource="{Binding Criteria}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid ColumnSpacing="8" Padding="0,3">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="16"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Ellipse Width="10" Height="10"
+                                                                 Fill="{Binding Status, Converter={StaticResource MatchStatusBrushConverter}}"
+                                                                 VerticalAlignment="Center"
+                                                                 AutomationProperties.Name="{Binding Status}"/>
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="{Binding Measurement}" FontSize="12"
+                                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="2" Text="{Binding Status}"
+                                                                   VerticalAlignment="Center" FontSize="12"
+                                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="Sets are connected through direct matches; a chain can include photos that do not match each other directly."
+                               TextWrapping="Wrap" FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                  </StackPanel>
+                </ScrollViewer>
             </Border>
         </Grid>
     </Grid>

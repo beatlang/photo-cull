@@ -2,6 +2,8 @@ using System;
 using System.Linq;
 using System.Numerics;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using PhotoCull.Core.Culling;
 using Xunit;
 
@@ -37,6 +39,114 @@ namespace PhotoCull.Tests.Culling
             var clusters = new Clusterer().Cluster(items);
 
             Assert.Equal(2, clusters.Count);
+        }
+
+        [Fact]
+        public void DefaultBurstWindowIsTwoSeconds()
+        {
+            var now = DateTime.UtcNow;
+            var items = new[] {
+                new ImageFeatures(1, now, null, null, null, null),
+                new ImageFeatures(2, now.AddSeconds(2), null, null, null, null),
+                new ImageFeatures(3, now.AddMilliseconds(4001), null, null, null, null),
+            };
+
+            var clusters = new Clusterer().Cluster(items);
+
+            Assert.Equal(2, clusters.Count);
+            Assert.Contains(clusters, cluster => cluster.Contains(1) && cluster.Contains(2));
+            Assert.Contains(clusters, cluster => cluster.Contains(3));
+        }
+
+        [Fact]
+        public void DetailedClusterResultIncludesEveryMatchingCriterionAndThreshold()
+        {
+            var now = DateTime.UtcNow;
+            var items = new[]
+            {
+                new ImageFeatures(1, now, 0UL, 0UL, null, new[] { 1f, 0f }),
+                new ImageFeatures(2, now.AddMinutes(1), 3UL, 1UL, null, new[] { 0.99f, 0.1f })
+            };
+            var options = new ClusterOptions
+            {
+                BurstWindow = TimeSpan.FromSeconds(2),
+                PHashHammingThreshold = 1,
+                DHashHammingThreshold = 0,
+                EmbeddingCosineThreshold = 0.99
+            };
+
+            var result = new Clusterer(options).ClusterDetailed(items);
+
+            var match = Assert.Single(result.Matches);
+            Assert.Equal(1, match.ImageId);
+            Assert.Equal(2, match.MatchedImageId);
+            Assert.Equal(60, match.CaptureTimeDifferenceSeconds);
+            Assert.Equal(2, match.BurstWindowSeconds);
+            Assert.Equal(2, match.PHashDistance);
+            Assert.Equal(1, match.PHashThreshold);
+            Assert.Equal(1, match.DHashDistance);
+            Assert.Equal(0, match.DHashThreshold);
+            Assert.True(match.EmbeddingCosineSimilarity >= 0.99);
+            Assert.Equal(0.99, match.EmbeddingCosineThreshold);
+            Assert.Equal(
+                ClusterCriterionEvaluation.CaptureTime | ClusterCriterionEvaluation.DHash |
+                ClusterCriterionEvaluation.PHash | ClusterCriterionEvaluation.Embedding,
+                match.EvaluatedCriteria);
+        }
+
+        [Fact]
+        public async Task LazyClusteringStopsLoadingFeaturesAfterFirstMatch()
+        {
+            var items = new[]
+            {
+                new ImageFeatures(1, DateTime.UnixEpoch, null, null, null, null),
+                new ImageFeatures(2, DateTime.UnixEpoch.AddMinutes(1), null, null, null, null)
+            };
+            var loadedStages = new List<ClusterFeatureStage>();
+            var clusterer = new Clusterer(new ClusterOptions { DHashHammingThreshold = 0, PHashHammingThreshold = 1 });
+
+            var result = await clusterer.ClusterDetailedAsync(items, (id, stage, _) =>
+            {
+                loadedStages.Add(stage);
+                var features = stage switch
+                {
+                    ClusterFeatureStage.DHash => new ImageFeatures(id, null, null, id == 1 ? 0UL : 1UL, null, null),
+                    ClusterFeatureStage.PHash => new ImageFeatures(id, null, id == 1 ? 0UL : 1UL, null, null, null),
+                    _ => new ImageFeatures(id, null, null, null, null, new[] { 1f, 0f })
+                };
+                return Task.FromResult(features);
+            }, CancellationToken.None);
+
+            var match = Assert.Single(result.Matches);
+            Assert.Equal(
+                new[] { ClusterFeatureStage.DHash, ClusterFeatureStage.DHash, ClusterFeatureStage.PHash, ClusterFeatureStage.PHash },
+                loadedStages);
+            Assert.Equal(
+                ClusterCriterionEvaluation.CaptureTime | ClusterCriterionEvaluation.DHash | ClusterCriterionEvaluation.PHash,
+                match.EvaluatedCriteria);
+            Assert.Null(match.EmbeddingCosineSimilarity);
+        }
+
+        [Fact]
+        public async Task TimestampMatchDoesNotLoadHashesOrEmbedding()
+        {
+            var now = DateTime.UnixEpoch;
+            var items = new[]
+            {
+                new ImageFeatures(1, now, null, null, null, null),
+                new ImageFeatures(2, now.AddSeconds(1), null, null, null, null)
+            };
+            var loadCount = 0;
+
+            var result = await new Clusterer().ClusterDetailedAsync(items, (_, _, _) =>
+            {
+                loadCount++;
+                return Task.FromResult(new ImageFeatures(0, null, null, null, null, null));
+            });
+
+            var match = Assert.Single(result.Matches);
+            Assert.Equal(0, loadCount);
+            Assert.Equal(ClusterCriterionEvaluation.CaptureTime, match.EvaluatedCriteria);
         }
 
         [Fact]

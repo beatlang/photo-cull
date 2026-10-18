@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using PhotoCull.Core.Culling;
 using System.Collections.ObjectModel;
 using System.Linq;
 
@@ -10,6 +11,7 @@ namespace PhotoCull.App.ViewModels
         public string Name { get; }
 
         public ObservableCollection<ImageViewModel> Members { get; } = new();
+        public ObservableCollection<ClusterMatch> Matches { get; } = new();
         public string? CoverUri => Members.FirstOrDefault(m => m.IsBestShot)?.ThumbnailUri
             ?? Members.FirstOrDefault()?.ThumbnailUri;
 

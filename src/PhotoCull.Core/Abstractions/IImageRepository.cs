@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using PhotoCull.Core.Culling;
 
 namespace PhotoCull.Core.Abstractions
 {
@@ -29,6 +30,8 @@ namespace PhotoCull.Core.Abstractions
 
         Task<long> CreateSetAsync(string name);
         Task SaveSetMembersAsync(long setId, IEnumerable<SetMember> members);
+        Task SaveSetMatchesAsync(long setId, IEnumerable<ClusterMatch> matches) => Task.CompletedTask;
+        Task<IEnumerable<ClusterMatch>> LoadSetMatchesAsync(long setId) => Task.FromResult<IEnumerable<ClusterMatch>>(Array.Empty<ClusterMatch>());
         Task ClearSetsAsync() => Task.CompletedTask;
         Task<IEnumerable<SetInfo>> ListSetsAsync()
         {
