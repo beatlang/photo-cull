@@ -1,0 +1,27 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build-app",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "${workspaceFolder}/src/PhotoCull.App/PhotoCull.App.csproj", "-p:Platform=x64"],
+      "problemMatcher": "$msCompile",
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "run-app",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/run.ps1",
+      "problemMatcher": []
+    },
+    {
+      "label": "test",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["test", "${workspaceFolder}/tests/PhotoCull.Tests"],
+      "problemMatcher": "$msCompile",
+      "group": "test"
+    }
+  ]
+}

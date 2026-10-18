@@ -6,8 +6,7 @@ obj/
 **/bin/
 **/obj/
 
-# VS Code
-.vscode/
+# VS Code (share launch/tasks, ignore the rest)`n.vscode/*`n!.vscode/launch.json`n!.vscode/tasks.json
 
 # Local models
 models/
