@@ -14,10 +14,12 @@ namespace PhotoCull.Infrastructure
     public class ThumbnailService : IThumbnailService
     {
         private readonly int _maxSize;
+        private readonly PhotoCull.Core.Abstractions.IImageDecoder? _decoder;
 
-        public ThumbnailService(int maxSize = 512)
+        public ThumbnailService(int maxSize = 512, PhotoCull.Core.Abstractions.IImageDecoder? decoder = null)
         {
             _maxSize = maxSize;
+            _decoder = decoder;
         }
 
         public async Task<string?> GenerateThumbnailAsync(string imagePath, string cacheDirectory, CancellationToken cancellationToken = default)
@@ -63,7 +65,26 @@ namespace PhotoCull.Infrastructure
             }
             catch (SixLabors.ImageSharp.UnknownImageFormatException)
             {
-                // Unsupported format (HEIC/RAW). TODO: integrate external decoders.
+                // Unsupported format (HEIC/RAW) - try external decoder if available
+                if (_decoder != null)
+                {
+                    try
+                    {
+                        using var fs = File.OpenRead(imagePath);
+                        var decoded = await _decoder.DecodeToJpegAsync(fs, _maxSize, Path.GetExtension(imagePath));
+                        if (decoded != null)
+                        {
+                            decoded.Position = 0;
+                            using var outFs = File.Create(cached);
+                            await decoded.CopyToAsync(outFs, cancellationToken);
+                            return cached;
+                        }
+                    }
+                    catch
+                    {
+                        // tolerant
+                    }
+                }
                 return null;
             }
             catch (NotSupportedException)

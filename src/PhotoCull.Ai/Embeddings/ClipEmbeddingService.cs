@@ -39,12 +39,14 @@ namespace PhotoCull.Ai.Embeddings
         private readonly IImageRepository _repository;
         private readonly PreprocessingOptions _options;
         private readonly string _inputName;
+        private readonly PhotoCull.Core.Abstractions.IImageDecoder? _decoder;
 
-        public ImageEmbeddingService(IInferenceEngine engine, IImageRepository repository, PreprocessingOptions? options = null, string? inputName = null)
+        public ImageEmbeddingService(IInferenceEngine engine, IImageRepository repository, PreprocessingOptions? options = null, string? inputName = null, PhotoCull.Core.Abstractions.IImageDecoder? decoder = null)
         {
             _engine = engine ?? throw new ArgumentNullException(nameof(engine));
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
             _options = options ?? PreprocessingOptions.ClipPreset;
+            _decoder = decoder;
 
             // determine input name: prefer provided, else inference engine metadata, else fallback
             if (!string.IsNullOrEmpty(inputName)) _inputName = inputName;
@@ -87,10 +89,32 @@ namespace PhotoCull.Ai.Embeddings
             await _repository.SaveEmbeddingAsync(imageId, embedding).ConfigureAwait(false);
         }
 
-        private static Tensor<float> Preprocess(Stream imageStream, PreprocessingOptions opts)
+        private Tensor<float> Preprocess(Stream imageStream, PreprocessingOptions opts)
         {
             imageStream.Position = 0;
-            using var img = Image.Load<Rgb24>(imageStream);
+            try
+            {
+                using var img = Image.Load<Rgb24>(imageStream);
+                return PreprocessImage(img, opts);
+            }
+            catch (SixLabors.ImageSharp.UnknownImageFormatException)
+            {
+                if (_decoder != null)
+                {
+                    var decoded = _decoder.DecodeToJpegAsync(imageStream).GetAwaiter().GetResult();
+                    if (decoded != null)
+                    {
+                        decoded.Position = 0;
+                        using var img = Image.Load<Rgb24>(decoded);
+                        return PreprocessImage(img, opts);
+                    }
+                }
+                throw;
+            }
+        }
+
+        private static Tensor<float> PreprocessImage(Image<Rgb24> img, PreprocessingOptions opts)
+        {
             int target = opts.Size;
 
             if (opts.StretchNoCrop)

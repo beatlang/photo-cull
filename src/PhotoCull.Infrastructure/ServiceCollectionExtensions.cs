@@ -15,10 +15,11 @@ namespace PhotoCull.Infrastructure
         {
             // Core infrastructure implementations
             services.AddSingleton<IFolderScanner, FolderScanner>();
-            services.AddSingleton<IThumbnailService, ThumbnailService>();
+            services.AddSingleton<PhotoCull.Core.Abstractions.IImageDecoder, PhotoCull.Infrastructure.Imaging.MagickImageDecoder>();
+            services.AddSingleton<IThumbnailService>(sp => new ThumbnailService(512, sp.GetRequiredService<PhotoCull.Core.Abstractions.IImageDecoder>()));
             services.AddSingleton<IExifReader, ExifReader>();
-            services.AddSingleton<IHashService, HashService>();
-            services.AddSingleton<IQualityAnalyzer, QualityAnalyzer>();
+            services.AddSingleton<IHashService>(sp => new HashService(sp.GetService<PhotoCull.Core.Abstractions.IImageDecoder>()));
+            services.AddSingleton<IQualityAnalyzer>(sp => new QualityAnalyzer(sp.GetService<PhotoCull.Core.Abstractions.IImageDecoder>()));
             services.AddSingleton<IImageRepository, SqliteImageRepository>();
             services.AddSingleton<CullingPipeline>();
             // file operations + deletion service for safe deletes and undo

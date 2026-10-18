@@ -11,10 +11,38 @@ namespace PhotoCull.Infrastructure.Metadata
 {
     public class HashService : IHashService
     {
-        public ulong ComputeAHash(Stream stream)
+        private readonly PhotoCull.Core.Abstractions.IImageDecoder? _decoder;
+
+        public HashService(PhotoCull.Core.Abstractions.IImageDecoder? decoder = null)
+        {
+            _decoder = decoder;
+        }
+
+        private Image<Rgba32> LoadImageWithFallback(Stream stream)
         {
             if (stream.CanSeek) stream.Position = 0;
-            using var img = Image.Load<Rgba32>(stream);
+            try
+            {
+                return Image.Load<Rgba32>(stream);
+            }
+            catch (SixLabors.ImageSharp.UnknownImageFormatException)
+            {
+                if (_decoder != null)
+                {
+                    var decoded = _decoder.DecodeToJpegAsync(stream).GetAwaiter().GetResult();
+                    if (decoded != null)
+                    {
+                        decoded.Position = 0;
+                        return Image.Load<Rgba32>(decoded);
+                    }
+                }
+                throw;
+            }
+        }
+
+        public ulong ComputeAHash(Stream stream)
+        {
+            using var img = LoadImageWithFallback(stream);
             img.Mutate(x => x.Resize(new ResizeOptions { Size = new Size(8, 8), Mode = ResizeMode.Stretch, Sampler = KnownResamplers.Bicubic }));
             byte[] gray = new byte[64];
             int idx = 0;
@@ -38,8 +66,7 @@ namespace PhotoCull.Infrastructure.Metadata
 
         public ulong ComputeDHash(Stream stream)
         {
-            if (stream.CanSeek) stream.Position = 0;
-            using var img = Image.Load<Rgba32>(stream);
+            using var img = LoadImageWithFallback(stream);
             // dHash: resize to 9x8, compare left-right using luminance
             img.Mutate(x => x.Resize(new ResizeOptions { Size = new Size(9, 8), Mode = ResizeMode.Stretch, Sampler = KnownResamplers.Lanczos3 }));
             ulong hash = 0;
@@ -62,8 +89,7 @@ namespace PhotoCull.Infrastructure.Metadata
 
         public ulong ComputePHash(Stream stream)
         {
-            if (stream.CanSeek) stream.Position = 0;
-            using var img = Image.Load<Rgba32>(stream);
+            using var img = LoadImageWithFallback(stream);
             // resize to 32x32 grayscale with good resampler
             img.Mutate(x => x.Resize(new ResizeOptions { Size = new Size(32, 32), Mode = ResizeMode.Stretch, Sampler = KnownResamplers.Bicubic }));
             double[,] vals = new double[32, 32];

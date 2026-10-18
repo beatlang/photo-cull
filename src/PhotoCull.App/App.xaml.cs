@@ -37,7 +37,7 @@ namespace PhotoCull.App
                     var engine = new PhotoCull.Ai.Inference.OnnxInferenceEngine(modelPath);
                     services.AddSingleton<PhotoCull.Core.Abstractions.IInferenceEngine>(engine);
                     // default to SigLIP preset when model present
-                    services.AddSingleton<PhotoCull.Core.Abstractions.IEmbeddingService>(sp => new PhotoCull.Ai.Embeddings.ImageEmbeddingService(engine, sp.GetRequiredService<PhotoCull.Core.Abstractions.IImageRepository>(), PhotoCull.Ai.Embeddings.PreprocessingOptions.SiglipPreset));
+                    services.AddSingleton<PhotoCull.Core.Abstractions.IEmbeddingService>(sp => new PhotoCull.Ai.Embeddings.ImageEmbeddingService(engine, sp.GetRequiredService<PhotoCull.Core.Abstractions.IImageRepository>(), PhotoCull.Ai.Embeddings.PreprocessingOptions.SiglipPreset, null, sp.GetRequiredService<PhotoCull.Core.Abstractions.IImageDecoder>()));
                 }
                 else
                 {

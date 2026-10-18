@@ -9,6 +9,12 @@ namespace PhotoCull.Infrastructure.Quality
 {
     public class QualityAnalyzer : PhotoCull.Core.Abstractions.IQualityAnalyzer
     {
+        private readonly PhotoCull.Core.Abstractions.IImageDecoder? _decoder;
+        public QualityAnalyzer(PhotoCull.Core.Abstractions.IImageDecoder? decoder = null)
+        {
+            _decoder = decoder;
+        }
+
         public async Task<QualityMetrics> AnalyzeAsync(Stream imageStream)
         {
             byte[] data;
@@ -19,7 +25,19 @@ namespace PhotoCull.Infrastructure.Quality
             }
 
             var mat = Cv2.ImDecode(data, ImreadModes.Color);
-            if (mat.Empty()) throw new InvalidDataException("Could not decode image");
+            if (mat.Empty())
+            {
+                if (_decoder != null)
+                {
+                    var decoded = await _decoder.DecodeToJpegAsync(new MemoryStream(data));
+                    if (decoded != null)
+                    {
+                        var decBytes = decoded.ToArray();
+                        mat = Cv2.ImDecode(decBytes, ImreadModes.Color);
+                    }
+                }
+                if (mat.Empty()) throw new InvalidDataException("Could not decode image");
+                }
 
             var metrics = new QualityMetrics();
 
