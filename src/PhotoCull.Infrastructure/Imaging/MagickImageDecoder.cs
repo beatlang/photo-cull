@@ -45,8 +45,8 @@ namespace PhotoCull.Infrastructure.Imaging
                 if (longSide > maxLongSide)
                 {
                     double ratio = (double)maxLongSide / longSide;
-                    int newW = (int)Math.Max(1, Math.Round(img.Width * ratio));
-                    int newH = (int)Math.Max(1, Math.Round(img.Height * ratio));
+                    uint newW = (uint)Math.Max(1, Math.Round(img.Width * ratio));
+                    uint newH = (uint)Math.Max(1, Math.Round(img.Height * ratio));
                     img.Resize(newW, newH);
                 }
 
