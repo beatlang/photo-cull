@@ -14,6 +14,9 @@ namespace PhotoCull.Core.Abstractions
     {
         InferenceProvider ActiveProvider { get; }
 
+        IReadOnlyList<string> InputNames { get; }
+        IReadOnlyList<string> OutputNames { get; }
+
         IReadOnlyDictionary<string, float[]> Run(IReadOnlyDictionary<string, Tensor<float>> inputs);
     }
 }

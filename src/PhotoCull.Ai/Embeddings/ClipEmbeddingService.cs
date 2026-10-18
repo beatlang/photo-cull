@@ -12,34 +12,62 @@ using SixLabors.ImageSharp.Processing;
 
 namespace PhotoCull.Ai.Embeddings
 {
-    public class ClipEmbeddingService : IEmbeddingService
+    public record PreprocessingOptions(int Size, float[] Mean, float[] Std, bool StretchNoCrop, string Resampler, float Rescale)
+    {
+        public static PreprocessingOptions ClipPreset => new PreprocessingOptions(
+            224,
+            new float[] { 0.48145466f, 0.4578275f, 0.40821073f },
+            new float[] { 0.26862954f, 0.26130258f, 0.27577711f },
+            StretchNoCrop: false,
+            Resampler: "Bicubic",
+            Rescale: 1f / 255f
+        );
+
+        public static PreprocessingOptions SiglipPreset => new PreprocessingOptions(
+            224,
+            new float[] { 0.5f, 0.5f, 0.5f },
+            new float[] { 0.5f, 0.5f, 0.5f },
+            StretchNoCrop: true,
+            Resampler: "Bicubic",
+            Rescale: 1f / 255f
+        );
+    }
+
+    public class ImageEmbeddingService : IEmbeddingService
     {
         private readonly IInferenceEngine _engine;
         private readonly IImageRepository _repository;
+        private readonly PreprocessingOptions _options;
         private readonly string _inputName;
 
-        // CLIP mean/std (float)
-        private static readonly float[] Mean = { 0.48145466f, 0.4578275f, 0.40821073f };
-        private static readonly float[] Std = { 0.26862954f, 0.26130258f, 0.27577711f };
-
-        public ClipEmbeddingService(IInferenceEngine engine, IImageRepository repository, string inputName = "input")
+        public ImageEmbeddingService(IInferenceEngine engine, IImageRepository repository, PreprocessingOptions? options = null, string? inputName = null)
         {
             _engine = engine ?? throw new ArgumentNullException(nameof(engine));
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
-            _inputName = inputName;
+            _options = options ?? PreprocessingOptions.ClipPreset;
+
+            // determine input name: prefer provided, else inference engine metadata, else fallback
+            if (!string.IsNullOrEmpty(inputName)) _inputName = inputName;
+            else _inputName = engine.InputNames?.FirstOrDefault() ?? "input";
         }
 
         public async Task<float[]> CreateEmbeddingAsync(Stream imageStream, CancellationToken cancellationToken = default)
         {
             if (imageStream == null) throw new ArgumentNullException(nameof(imageStream));
 
-            // Preprocess image to 224x224 NCHW float tensor
-            Tensor<float> input = await Task.Run(() => Preprocess(imageStream), cancellationToken).ConfigureAwait(false);
+            // Preprocess image to NCHW float tensor according to options
+            Tensor<float> input = await Task.Run(() => Preprocess(imageStream, _options), cancellationToken).ConfigureAwait(false);
 
             var inputs = new Dictionary<string, Tensor<float>> { { _inputName, input } };
             var outputs = _engine.Run(inputs);
-            // take first output
-            var first = outputs.Values.FirstOrDefault();
+            if (outputs == null || outputs.Count == 0) return Array.Empty<float>();
+
+            // pick output name from engine metadata if available
+            string chosen = outputs.Keys.FirstOrDefault(k => string.Equals(k, "image_embeds", StringComparison.OrdinalIgnoreCase))
+                            ?? outputs.Keys.FirstOrDefault(k => string.Equals(k, "pooler_output", StringComparison.OrdinalIgnoreCase))
+                            ?? outputs.Keys.First();
+
+            var first = outputs[chosen];
             if (first == null) return Array.Empty<float>();
 
             float[] embedding = first;
@@ -59,31 +87,33 @@ namespace PhotoCull.Ai.Embeddings
             await _repository.SaveEmbeddingAsync(imageId, embedding).ConfigureAwait(false);
         }
 
-        private static Tensor<float> Preprocess(Stream imageStream)
+        private static Tensor<float> Preprocess(Stream imageStream, PreprocessingOptions opts)
         {
             imageStream.Position = 0;
             using var img = Image.Load<Rgb24>(imageStream);
-            int target = 224;
-            int w = img.Width;
-            int h = img.Height;
-            // scale so shortest side == 224
-            float scale = (float)target / Math.Min(w, h);
-            int newW = Math.Max(1, (int)Math.Round(w * scale));
-            int newH = Math.Max(1, (int)Math.Round(h * scale));
+            int target = opts.Size;
 
-            img.Mutate(x => x.Resize(new ResizeOptions
+            if (opts.StretchNoCrop)
             {
-                Size = new Size(newW, newH),
-                Sampler = KnownResamplers.Bicubic,
-                Mode = ResizeMode.Stretch
-            }));
+                img.Mutate(x => x.Resize(new ResizeOptions
+                {
+                    Size = new Size(target, target),
+                    Sampler = (opts.Resampler == "Bicubic") ? KnownResamplers.Bicubic : KnownResamplers.Bicubic,
+                    Mode = ResizeMode.Stretch
+                }));
+            }
+            else
+            {
+                img.Mutate(x => x.Resize(new ResizeOptions
+                {
+                    Size = new Size(target, target),
+                    Sampler = (opts.Resampler == "Bicubic") ? KnownResamplers.Bicubic : KnownResamplers.Bicubic,
+                    Mode = ResizeMode.Crop,
+                    Position = AnchorPositionMode.Center
+                }));
+            }
 
-            // center crop
-            int left = Math.Max(0, (newW - target) / 2);
-            int top = Math.Max(0, (newH - target) / 2);
-            img.Mutate(x => x.Crop(new Rectangle(left, top, target, target)));
-
-            // create tensor [1,3,224,224]
+            // create tensor [1,3,H,W]
             var tensor = new DenseTensor<float>(new[] { 1, 3, target, target });
 
             img.ProcessPixelRows(accessor =>
@@ -94,14 +124,14 @@ namespace PhotoCull.Ai.Embeddings
                     for (int x = 0; x < target; x++)
                     {
                         var p = row[x];
-                        // normalize to 0..1
-                        float r = p.R / 255f;
-                        float g = p.G / 255f;
-                        float b = p.B / 255f;
+                        // rescale (p.R is 0..255)
+                        float r = p.R * opts.Rescale;
+                        float g = p.G * opts.Rescale;
+                        float b = p.B * opts.Rescale;
                         // apply mean/std
-                        float rn = (r - Mean[0]) / Std[0];
-                        float gn = (g - Mean[1]) / Std[1];
-                        float bn = (b - Mean[2]) / Std[2];
+                        float rn = (r - opts.Mean[0]) / opts.Std[0];
+                        float gn = (g - opts.Mean[1]) / opts.Std[1];
+                        float bn = (b - opts.Mean[2]) / opts.Std[2];
                         // NCHW
                         tensor[0, 0, y, x] = rn;
                         tensor[0, 1, y, x] = gn;

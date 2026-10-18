@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\PhotoCull.Core\PhotoCull.Core.csproj" />
     <ProjectReference Include="..\PhotoCull.Infrastructure\PhotoCull.Infrastructure.csproj" />
+    <ProjectReference Include="..\PhotoCull.Ai\PhotoCull.Ai.csproj" />
   </ItemGroup>
 </Project>
 

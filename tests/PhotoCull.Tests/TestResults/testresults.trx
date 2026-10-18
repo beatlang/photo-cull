@@ -1,0 +1,154 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="7518f91d-ae1d-465f-8502-f60d18299375" name="beatl@BLA 2026-10-18 12:55:41" runUser="BLA\beatl" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-18T12:55:41.4701434+02:00" queuing="2026-10-18T12:55:41.4701440+02:00" start="2026-10-18T12:55:40.6954543+02:00" finish="2026-10-18T12:55:41.6526539+02:00" />
+  <TestSettings name="default" id="c0784590-3718-483e-820f-628448556da5">
+    <Deployment runDeploymentRoot="beatl_BLA_2026-10-18_12_55_41" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="673889b6-8e03-40d3-9082-4b5d9d4d8326" testId="a3b6d623-4bf9-ce22-8cee-ebc041833228" testName="PhotoCull.Tests.Quality.QualityAnalyzerTests.Noise_NoisyVsClean" computerName="BLA" duration="00:00:00.0397003" startTime="2026-10-18T12:55:41.5441731+02:00" endTime="2026-10-18T12:55:41.5838259+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="673889b6-8e03-40d3-9082-4b5d9d4d8326" />
+    <UnitTestResult executionId="a4286984-ae61-4c52-a615-cf7a3e2ee684" testId="2ea45d89-a4b3-e822-1a86-7ee3b7156644" testName="PhotoCull.Tests.Metadata.HashServiceTests.IdenticalImages_HammingDistanceIsZero" computerName="BLA" duration="00:00:00.1827968" startTime="2026-10-18T12:55:41.3164401+02:00" endTime="2026-10-18T12:55:41.4720769+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a4286984-ae61-4c52-a615-cf7a3e2ee684" />
+    <UnitTestResult executionId="4ffeef06-1fb7-4f39-bdef-1915c8463b2c" testId="f973fd1b-6bc9-49be-933a-305eb4862096" testName="PhotoCull.Tests.Culling.ClustererTests.BurstTimeShouldCluster" computerName="BLA" duration="00:00:00.0141409" startTime="2026-10-18T12:55:41.3164512+02:00" endTime="2026-10-18T12:55:41.3340453+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4ffeef06-1fb7-4f39-bdef-1915c8463b2c" />
+    <UnitTestResult executionId="20a2613c-93c2-4c6f-9579-ce0ec24840ee" testId="030c565f-9b4f-a3fe-50f0-924a7843566c" testName="PhotoCull.Tests.SimpleTests.TrivialPass" computerName="BLA" duration="00:00:00.0049397" startTime="2026-10-18T12:55:41.3145423+02:00" endTime="2026-10-18T12:55:41.3215456+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="20a2613c-93c2-4c6f-9579-ce0ec24840ee" />
+    <UnitTestResult executionId="98879ef0-d982-4c75-8ef6-d40459aa6167" testId="5d1d7ffd-1fbe-14e9-18b3-48c294be0eb3" testName="PhotoCull.Tests.Embeddings.ClipEmbeddingServiceTests.Preprocessing_ShapeAndValues" computerName="BLA" duration="00:00:00.2338896" startTime="2026-10-18T12:55:41.3322567+02:00" endTime="2026-10-18T12:55:41.5343635+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="98879ef0-d982-4c75-8ef6-d40459aa6167" />
+    <UnitTestResult executionId="3787f1c4-5108-4fae-b35a-071e2c6c7fbf" testId="dca1f094-3746-0f5f-c849-71b103db99ab" testName="PhotoCull.Tests.Metadata.HashServiceTests.DifferentImage_IsNotNearDuplicate" computerName="BLA" duration="00:00:00.0377483" startTime="2026-10-18T12:55:41.4723137+02:00" endTime="2026-10-18T12:55:41.5099746+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3787f1c4-5108-4fae-b35a-071e2c6c7fbf" />
+    <UnitTestResult executionId="a8016376-de0d-4f29-8230-cbc4ef3a8ad7" testId="e1d8450d-ba13-9fb9-9da3-0f5dccbe6247" testName="PhotoCull.Tests.FolderScannerTests.FindsImagesRecursiveAndCaseInsensitive" computerName="BLA" duration="00:00:00.1835685" startTime="2026-10-18T12:55:41.3164769+02:00" endTime="2026-10-18T12:55:41.4768856+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a8016376-de0d-4f29-8230-cbc4ef3a8ad7" />
+    <UnitTestResult executionId="47d744e0-ba3c-485c-ba52-a0a0c2396e26" testId="445ce9ab-0bce-558c-a230-e7500ff45ad9" testName="PhotoCull.Tests.Embeddings.ClipEmbeddingServiceTests.Embedding_IsL2Normalized_And_Saved" computerName="BLA" duration="00:00:00.0233636" startTime="2026-10-18T12:55:41.5366191+02:00" endTime="2026-10-18T12:55:41.5582891+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="47d744e0-ba3c-485c-ba52-a0a0c2396e26" />
+    <UnitTestResult executionId="cd336d0d-8b12-4359-92d7-1f78ca222928" testId="b16266a6-8b4c-a182-a778-b4c5eb13866b" testName="PhotoCull.Tests.ThumbnailServiceTests.GeneratesAndCachesJpegThumbnail" computerName="BLA" duration="00:00:00.2523655" startTime="2026-10-18T12:55:41.3165000+02:00" endTime="2026-10-18T12:55:41.5419957+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="cd336d0d-8b12-4359-92d7-1f78ca222928" />
+    <UnitTestResult executionId="e1e5a96d-aa21-40ed-b067-4091456b0a09" testId="4da47743-8c2f-a3ef-e05d-4c2da9352669" testName="PhotoCull.Tests.Inference.ProviderSelectionTests.Default_Attempt_Uses_DirectML_Or_CPU" computerName="BLA" duration="00:00:00.1220186" startTime="2026-10-18T12:55:41.3947442+02:00" endTime="2026-10-18T12:55:41.5063601+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e1e5a96d-aa21-40ed-b067-4091456b0a09" />
+    <UnitTestResult executionId="a8b53b50-5537-4680-bea2-530fdd0a4833" testId="3e3c895a-98be-647f-25de-82d2aae6eaa3" testName="PhotoCull.Tests.Quality.QualityAnalyzerTests.SharpImage_IsSharperThanBlurred" computerName="BLA" duration="00:00:00.2130010" startTime="2026-10-18T12:55:41.3163974+02:00" endTime="2026-10-18T12:55:41.5023297+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a8b53b50-5537-4680-bea2-530fdd0a4833" />
+    <UnitTestResult executionId="4b860788-50d0-40e6-b731-2d53be955e34" testId="98771344-da1c-aafc-7c37-36a47959f8b1" testName="PhotoCull.Tests.Embeddings.ClipEmbeddingServiceTests.CosineSimilarity_Works" computerName="BLA" duration="00:00:00.0088623" startTime="2026-10-18T12:55:41.3164273+02:00" endTime="2026-10-18T12:55:41.3175771+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4b860788-50d0-40e6-b731-2d53be955e34" />
+    <UnitTestResult executionId="54722597-2b78-44e2-b3d2-32bee6fe79ed" testId="e95950ea-2e1d-ea5d-e30d-5aaac9b14cc7" testName="PhotoCull.Tests.Quality.QualityAnalyzerTests.Exposure_DarkVsBright" computerName="BLA" duration="00:00:00.0415473" startTime="2026-10-18T12:55:41.5026685+02:00" endTime="2026-10-18T12:55:41.5439721+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="54722597-2b78-44e2-b3d2-32bee6fe79ed" />
+    <UnitTestResult executionId="8c029b76-cfbf-440d-8796-9c0ac27d20a2" testId="73bab15e-f493-de9e-c082-221c4692d71f" testName="PhotoCull.Tests.Culling.ClustererTests.EmbeddingShouldClusterByCosine" computerName="BLA" duration="00:00:00.0013378" startTime="2026-10-18T12:55:41.3346710+02:00" endTime="2026-10-18T12:55:41.3347487+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8c029b76-cfbf-440d-8796-9c0ac27d20a2" />
+    <UnitTestResult executionId="6f51c6b0-5792-470a-a36d-a368a5328201" testId="1c6dec01-9dbd-bd70-28b9-33d1e67cf5de" testName="PhotoCull.Tests.Inference.MissingModelFileTests.Constructor_Throws_When_Model_Missing" computerName="BLA" duration="00:00:00.0012303" startTime="2026-10-18T12:55:41.3343828+02:00" endTime="2026-10-18T12:55:41.3344146+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="6f51c6b0-5792-470a-a36d-a368a5328201" />
+    <UnitTestResult executionId="ca2626ca-3965-4cd9-8d68-8c527cc786e1" testId="34365055-2e94-854e-3a56-e574645b1ab5" testName="PhotoCull.Tests.Culling.RankerTests.BestIsKeepOthersDeleteOrReview" computerName="BLA" duration="00:00:00.0052590" startTime="2026-10-18T12:55:41.3327028+02:00" endTime="2026-10-18T12:55:41.3347038+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ca2626ca-3965-4cd9-8d68-8c527cc786e1" />
+    <UnitTestResult executionId="2b97fc34-3aa1-4f16-ab80-5da4c1c519f3" testId="1aa42fe5-8209-6421-faae-2b3278c1536b" testName="PhotoCull.Tests.Storage.SqliteImageRepositoryTests.Upsert_SaveLoadEmbeddingAndScores_Work" computerName="BLA" duration="00:00:00.1705958" startTime="2026-10-18T12:55:41.3164892+02:00" endTime="2026-10-18T12:55:41.4598812+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2b97fc34-3aa1-4f16-ab80-5da4c1c519f3" />
+    <UnitTestResult executionId="cfbeb640-cd68-4384-80a3-0f9eb6e0a249" testId="895f93e4-1978-a1a2-9862-c82beae28e9c" testName="PhotoCull.Tests.Inference.ProviderSelectionTests.ForceDmlFailure_Falls_Back_To_CPU" computerName="BLA" duration="00:00:00.0948805" startTime="2026-10-18T12:55:41.3164651+02:00" endTime="2026-10-18T12:55:41.3842208+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="cfbeb640-cd68-4384-80a3-0f9eb6e0a249" />
+    <UnitTestResult executionId="96015bfe-07a6-4f25-b35b-439e5c4632c9" testId="a584bc2b-c96c-d4bf-a0fa-87c76038c771" testName="PhotoCull.Tests.Metadata.HashServiceTests.ResizedOrRecompressed_IsNearDuplicate" computerName="BLA" duration="00:00:00.0390851" startTime="2026-10-18T12:55:41.5102465+02:00" endTime="2026-10-18T12:55:41.5491530+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="96015bfe-07a6-4f25-b35b-439e5c4632c9" />
+    <UnitTestResult executionId="4fdb61a4-9a89-43b7-aca3-9f44e9bc6bc5" testId="b7d78170-9ce9-a1be-0244-6a37f433d724" testName="PhotoCull.Tests.Culling.ClustererTests.PHashShouldClusterCloseHashes" computerName="BLA" duration="00:00:00.0027872" startTime="2026-10-18T12:55:41.3342150+02:00" endTime="2026-10-18T12:55:41.3345894+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4fdb61a4-9a89-43b7-aca3-9f44e9bc6bc5" />
+    <UnitTestResult executionId="15e6107c-3db2-47b0-9da5-fce941a3924f" testId="9ff1aee5-0ca3-abd9-8edd-0df0e039c806" testName="PhotoCull.Tests.Culling.RankerTests.SingletonLowQualityIsReview" computerName="BLA" duration="00:00:00.0122547" startTime="2026-10-18T12:55:41.3162784+02:00" endTime="2026-10-18T12:55:41.3323115+02:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="15e6107c-3db2-47b0-9da5-fce941a3924f" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="PhotoCull.Tests.Metadata.HashServiceTests.ResizedOrRecompressed_IsNearDuplicate" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="a584bc2b-c96c-d4bf-a0fa-87c76038c771">
+      <Execution id="96015bfe-07a6-4f25-b35b-439e5c4632c9" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.Metadata.HashServiceTests" name="ResizedOrRecompressed_IsNearDuplicate" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.Culling.RankerTests.BestIsKeepOthersDeleteOrReview" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="34365055-2e94-854e-3a56-e574645b1ab5">
+      <Execution id="ca2626ca-3965-4cd9-8d68-8c527cc786e1" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.Culling.RankerTests" name="BestIsKeepOthersDeleteOrReview" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.Quality.QualityAnalyzerTests.Noise_NoisyVsClean" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="a3b6d623-4bf9-ce22-8cee-ebc041833228">
+      <Execution id="673889b6-8e03-40d3-9082-4b5d9d4d8326" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.Quality.QualityAnalyzerTests" name="Noise_NoisyVsClean" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.Culling.ClustererTests.EmbeddingShouldClusterByCosine" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="73bab15e-f493-de9e-c082-221c4692d71f">
+      <Execution id="8c029b76-cfbf-440d-8796-9c0ac27d20a2" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.Culling.ClustererTests" name="EmbeddingShouldClusterByCosine" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.ThumbnailServiceTests.GeneratesAndCachesJpegThumbnail" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="b16266a6-8b4c-a182-a778-b4c5eb13866b">
+      <Execution id="cd336d0d-8b12-4359-92d7-1f78ca222928" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.ThumbnailServiceTests" name="GeneratesAndCachesJpegThumbnail" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.Embeddings.ClipEmbeddingServiceTests.Preprocessing_ShapeAndValues" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="5d1d7ffd-1fbe-14e9-18b3-48c294be0eb3">
+      <Execution id="98879ef0-d982-4c75-8ef6-d40459aa6167" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.Embeddings.ClipEmbeddingServiceTests" name="Preprocessing_ShapeAndValues" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.Culling.ClustererTests.BurstTimeShouldCluster" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="f973fd1b-6bc9-49be-933a-305eb4862096">
+      <Execution id="4ffeef06-1fb7-4f39-bdef-1915c8463b2c" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.Culling.ClustererTests" name="BurstTimeShouldCluster" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.SimpleTests.TrivialPass" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="030c565f-9b4f-a3fe-50f0-924a7843566c">
+      <Execution id="20a2613c-93c2-4c6f-9579-ce0ec24840ee" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.SimpleTests" name="TrivialPass" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.Quality.QualityAnalyzerTests.SharpImage_IsSharperThanBlurred" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="3e3c895a-98be-647f-25de-82d2aae6eaa3">
+      <Execution id="a8b53b50-5537-4680-bea2-530fdd0a4833" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.Quality.QualityAnalyzerTests" name="SharpImage_IsSharperThanBlurred" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.Embeddings.ClipEmbeddingServiceTests.Embedding_IsL2Normalized_And_Saved" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="445ce9ab-0bce-558c-a230-e7500ff45ad9">
+      <Execution id="47d744e0-ba3c-485c-ba52-a0a0c2396e26" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.Embeddings.ClipEmbeddingServiceTests" name="Embedding_IsL2Normalized_And_Saved" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.Inference.MissingModelFileTests.Constructor_Throws_When_Model_Missing" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="1c6dec01-9dbd-bd70-28b9-33d1e67cf5de">
+      <Execution id="6f51c6b0-5792-470a-a36d-a368a5328201" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.Inference.MissingModelFileTests" name="Constructor_Throws_When_Model_Missing" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.Culling.ClustererTests.PHashShouldClusterCloseHashes" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="b7d78170-9ce9-a1be-0244-6a37f433d724">
+      <Execution id="4fdb61a4-9a89-43b7-aca3-9f44e9bc6bc5" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.Culling.ClustererTests" name="PHashShouldClusterCloseHashes" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.Metadata.HashServiceTests.DifferentImage_IsNotNearDuplicate" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="dca1f094-3746-0f5f-c849-71b103db99ab">
+      <Execution id="3787f1c4-5108-4fae-b35a-071e2c6c7fbf" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.Metadata.HashServiceTests" name="DifferentImage_IsNotNearDuplicate" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.Culling.RankerTests.SingletonLowQualityIsReview" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="9ff1aee5-0ca3-abd9-8edd-0df0e039c806">
+      <Execution id="15e6107c-3db2-47b0-9da5-fce941a3924f" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.Culling.RankerTests" name="SingletonLowQualityIsReview" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.Inference.ProviderSelectionTests.Default_Attempt_Uses_DirectML_Or_CPU" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="4da47743-8c2f-a3ef-e05d-4c2da9352669">
+      <Execution id="e1e5a96d-aa21-40ed-b067-4091456b0a09" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.Inference.ProviderSelectionTests" name="Default_Attempt_Uses_DirectML_Or_CPU" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.FolderScannerTests.FindsImagesRecursiveAndCaseInsensitive" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="e1d8450d-ba13-9fb9-9da3-0f5dccbe6247">
+      <Execution id="a8016376-de0d-4f29-8230-cbc4ef3a8ad7" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.FolderScannerTests" name="FindsImagesRecursiveAndCaseInsensitive" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.Metadata.HashServiceTests.IdenticalImages_HammingDistanceIsZero" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="2ea45d89-a4b3-e822-1a86-7ee3b7156644">
+      <Execution id="a4286984-ae61-4c52-a615-cf7a3e2ee684" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.Metadata.HashServiceTests" name="IdenticalImages_HammingDistanceIsZero" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.Inference.ProviderSelectionTests.ForceDmlFailure_Falls_Back_To_CPU" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="895f93e4-1978-a1a2-9862-c82beae28e9c">
+      <Execution id="cfbeb640-cd68-4384-80a3-0f9eb6e0a249" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.Inference.ProviderSelectionTests" name="ForceDmlFailure_Falls_Back_To_CPU" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.Quality.QualityAnalyzerTests.Exposure_DarkVsBright" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="e95950ea-2e1d-ea5d-e30d-5aaac9b14cc7">
+      <Execution id="54722597-2b78-44e2-b3d2-32bee6fe79ed" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.Quality.QualityAnalyzerTests" name="Exposure_DarkVsBright" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.Embeddings.ClipEmbeddingServiceTests.CosineSimilarity_Works" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="98771344-da1c-aafc-7c37-36a47959f8b1">
+      <Execution id="4b860788-50d0-40e6-b731-2d53be955e34" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.Embeddings.ClipEmbeddingServiceTests" name="CosineSimilarity_Works" />
+    </UnitTest>
+    <UnitTest name="PhotoCull.Tests.Storage.SqliteImageRepositoryTests.Upsert_SaveLoadEmbeddingAndScores_Work" storage="c:\zhaw\repos\photo-cull\tests\photocull.tests\bin\debug\net10.0\photocull.tests.dll" id="1aa42fe5-8209-6421-faae-2b3278c1536b">
+      <Execution id="2b97fc34-3aa1-4f16-ab80-5da4c1c519f3" />
+      <TestMethod codeBase="C:\zhaw\repos\photo-cull\tests\PhotoCull.Tests\bin\Debug\net10.0\PhotoCull.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="PhotoCull.Tests.Storage.SqliteImageRepositoryTests" name="Upsert_SaveLoadEmbeddingAndScores_Work" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="a3b6d623-4bf9-ce22-8cee-ebc041833228" executionId="673889b6-8e03-40d3-9082-4b5d9d4d8326" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="2ea45d89-a4b3-e822-1a86-7ee3b7156644" executionId="a4286984-ae61-4c52-a615-cf7a3e2ee684" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="f973fd1b-6bc9-49be-933a-305eb4862096" executionId="4ffeef06-1fb7-4f39-bdef-1915c8463b2c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="030c565f-9b4f-a3fe-50f0-924a7843566c" executionId="20a2613c-93c2-4c6f-9579-ce0ec24840ee" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5d1d7ffd-1fbe-14e9-18b3-48c294be0eb3" executionId="98879ef0-d982-4c75-8ef6-d40459aa6167" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="dca1f094-3746-0f5f-c849-71b103db99ab" executionId="3787f1c4-5108-4fae-b35a-071e2c6c7fbf" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e1d8450d-ba13-9fb9-9da3-0f5dccbe6247" executionId="a8016376-de0d-4f29-8230-cbc4ef3a8ad7" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="445ce9ab-0bce-558c-a230-e7500ff45ad9" executionId="47d744e0-ba3c-485c-ba52-a0a0c2396e26" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b16266a6-8b4c-a182-a778-b4c5eb13866b" executionId="cd336d0d-8b12-4359-92d7-1f78ca222928" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="4da47743-8c2f-a3ef-e05d-4c2da9352669" executionId="e1e5a96d-aa21-40ed-b067-4091456b0a09" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="3e3c895a-98be-647f-25de-82d2aae6eaa3" executionId="a8b53b50-5537-4680-bea2-530fdd0a4833" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="98771344-da1c-aafc-7c37-36a47959f8b1" executionId="4b860788-50d0-40e6-b731-2d53be955e34" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e95950ea-2e1d-ea5d-e30d-5aaac9b14cc7" executionId="54722597-2b78-44e2-b3d2-32bee6fe79ed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="73bab15e-f493-de9e-c082-221c4692d71f" executionId="8c029b76-cfbf-440d-8796-9c0ac27d20a2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1c6dec01-9dbd-bd70-28b9-33d1e67cf5de" executionId="6f51c6b0-5792-470a-a36d-a368a5328201" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="34365055-2e94-854e-3a56-e574645b1ab5" executionId="ca2626ca-3965-4cd9-8d68-8c527cc786e1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1aa42fe5-8209-6421-faae-2b3278c1536b" executionId="2b97fc34-3aa1-4f16-ab80-5da4c1c519f3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="895f93e4-1978-a1a2-9862-c82beae28e9c" executionId="cfbeb640-cd68-4384-80a3-0f9eb6e0a249" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a584bc2b-c96c-d4bf-a0fa-87c76038c771" executionId="96015bfe-07a6-4f25-b35b-439e5c4632c9" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b7d78170-9ce9-a1be-0244-6a37f433d724" executionId="4fdb61a4-9a89-43b7-aca3-9f44e9bc6bc5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="9ff1aee5-0ca3-abd9-8edd-0df0e039c806" executionId="15e6107c-3db2-47b0-9da5-fce941a3924f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Ergebnisse nicht in einer Liste" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="Alle geladenen Ergebnisse" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="21" executed="21" passed="21" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.13)&#xD;
+[xUnit.net 00:00:00.08]   Discovering: PhotoCull.Tests&#xD;
+[xUnit.net 00:00:00.12]   Discovered:  PhotoCull.Tests&#xD;
+[xUnit.net 00:00:00.14]   Starting:    PhotoCull.Tests&#xD;
+[xUnit.net 00:00:00.47]   Finished:    PhotoCull.Tests&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

@@ -15,6 +15,8 @@ namespace PhotoCull.Ai.Inference
         private InferenceSession? _session;
 
                 public InferenceProvider ActiveProvider { get; private set; }
+        public IReadOnlyList<string> InputNames { get; private set; } = Array.Empty<string>();
+        public IReadOnlyList<string> OutputNames { get; private set; } = Array.Empty<string>();
 
         public OnnxInferenceEngine(string modelPath, bool forceDmlFailure = false)
         {
@@ -38,6 +40,16 @@ namespace PhotoCull.Ai.Inference
         {
             if (_session != null) return;
             _session = new InferenceSession(_modelPath, _options);
+            // populate metadata
+            try
+            {
+                InputNames = _session.InputMetadata.Keys.ToList();
+                OutputNames = _session.OutputMetadata.Keys.ToList();
+            }
+            catch
+            {
+                // ignore
+            }
         }
 
         public IReadOnlyDictionary<string, float[]> Run(IReadOnlyDictionary<string, Tensor<float>> inputs)

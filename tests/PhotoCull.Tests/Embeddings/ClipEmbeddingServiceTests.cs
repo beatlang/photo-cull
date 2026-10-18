@@ -29,7 +29,7 @@ namespace PhotoCull.Tests.Embeddings
 
             var engine = new CaptureInferenceEngine(returnVectorLength: 4);
             var repo = new NoopImageRepo();
-            var svc = new ClipEmbeddingService(engine, repo);
+            var svc = new ImageEmbeddingService(engine, repo);
 
             await svc.CreateEmbeddingAsync(ms);
 
@@ -61,7 +61,7 @@ namespace PhotoCull.Tests.Embeddings
 
             var engine = new ReturnVectorInferenceEngine(new float[] { 3f, 4f });
             var repo = new CaptureImageRepo();
-            var svc = new ClipEmbeddingService(engine, repo);
+            var svc = new ImageEmbeddingService(engine, repo);
 
             await svc.SaveEmbeddingAsync(123, ms);
 
@@ -89,6 +89,8 @@ namespace PhotoCull.Tests.Embeddings
             public Tensor<float>? LastInput { get; private set; }
             private readonly int _len;
             public InferenceProvider ActiveProvider => InferenceProvider.CPU;
+            public IReadOnlyList<string> InputNames => new[] { "input" };
+            public IReadOnlyList<string> OutputNames => new[] { "out" };
             public CaptureInferenceEngine(int returnVectorLength = 256) { _len = returnVectorLength; }
             public IReadOnlyDictionary<string, float[]> Run(IReadOnlyDictionary<string, Tensor<float>> inputs)
             {
@@ -103,6 +105,8 @@ namespace PhotoCull.Tests.Embeddings
             private readonly float[] _vec;
             public ReturnVectorInferenceEngine(float[] vec) { _vec = vec; }
             public InferenceProvider ActiveProvider => InferenceProvider.CPU;
+            public IReadOnlyList<string> InputNames => new[] { "input" };
+            public IReadOnlyList<string> OutputNames => new[] { "out" };
             public IReadOnlyDictionary<string, float[]> Run(IReadOnlyDictionary<string, Tensor<float>> inputs)
             {
                 return new System.Collections.Generic.Dictionary<string, float[]> { { "out", _vec.ToArray() } };

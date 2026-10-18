@@ -8,3 +8,8 @@ obj/
 
 # VS Code
 .vscode/
+
+# Local models
+models/
+*.onnx
+
