@@ -8,6 +8,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System;
 using System.Linq;
+using System.Collections.Generic;
+using System.ComponentModel;
 
 namespace PhotoCull.App.ViewModels
 {
@@ -22,7 +24,15 @@ namespace PhotoCull.App.ViewModels
         public ObservableCollection<SetViewModel> Sets { get; } = new();
 
         private SetViewModel? _selectedSet;
-        public SetViewModel? SelectedSet { get => _selectedSet; set => SetProperty(ref _selectedSet, value); }
+        public SetViewModel? SelectedSet
+        {
+            get => _selectedSet;
+            set
+            {
+                if (SetProperty(ref _selectedSet, value))
+                    SelectedImage = value?.Members.FirstOrDefault(m => m.IsBestShot) ?? value?.Members.FirstOrDefault();
+            }
+        }
 
         private ImageViewModel? _selectedImage;
         public ImageViewModel? SelectedImage { get => _selectedImage; set => SetProperty(ref _selectedImage, value); }
@@ -32,6 +42,18 @@ namespace PhotoCull.App.ViewModels
 
         private bool _isScanning;
         public bool IsScanning { get => _isScanning; set => SetProperty(ref _isScanning, value); }
+
+        private int _hiddenSetCount;
+        public int HiddenSetCount { get => _hiddenSetCount; private set => SetProperty(ref _hiddenSetCount, value); }
+
+        private string _summary = string.Empty;
+        public string Summary { get => _summary; private set => SetProperty(ref _summary, value); }
+
+        private int _markedForDeleteCount;
+        public int MarkedForDeleteCount { get => _markedForDeleteCount; private set => SetProperty(ref _markedForDeleteCount, value); }
+
+        private string _statusText = string.Empty;
+        public string StatusText { get => _statusText; private set => SetProperty(ref _statusText, value); }
 
         public MainWindowViewModel(CullingPipeline pipeline, IImageRepository repo, IThumbnailService thumb, IDeletionService deleter)
         {
@@ -48,15 +70,17 @@ namespace PhotoCull.App.ViewModels
                 _cts = new CancellationTokenSource();
                 var cache = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PhotoCull","cache");
                 var progress = new Progress<PhotoCull.Infrastructure.Pipeline.PipelineProgress>(p => {
-                    // simple progress estimate
-                    Progress = p.Processed + p.Errors;
+                    var completed = p.Processed + p.Errors;
+                    Progress = p.Scanned > 0 ? completed * 100d / p.Scanned : 0;
+                    StatusText = $"Scanning... {completed}/{p.Scanned}";
                 });
 
                 await _pipeline.RunAsync(folder, cache, progress, _cts.Token);
                 await LoadSetsAsync();
+                StatusText = "Scan complete";
             }
             catch (OperationCanceledException) { }
-            finally { IsScanning = false; _cts = null; Progress = 0; }
+            finally { IsScanning = false; _cts = null; }
         }
 
         [RelayCommand]
@@ -67,13 +91,22 @@ namespace PhotoCull.App.ViewModels
 
         public async Task LoadSetsAsync()
         {
+            foreach (var set in Sets)
+                Unsubscribe(set);
             Sets.Clear();
+            HiddenSetCount = 0;
             var sets = await _repo.ListSetsAsync();
             var cache = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PhotoCull","cache");
             foreach (var s in sets)
             {
-                var svm = new SetViewModel(s.Id, s.Name);
-                var members = await _repo.LoadSetMembersAsync(s.Id);
+                var members = (await _repo.LoadSetMembersAsync(s.Id)).ToList();
+                if (members.Count < 2 || members.All(m => m.Recommendation == Recommendation.Keep))
+                {
+                    HiddenSetCount++;
+                    continue;
+                }
+
+                var svm = new SetViewModel(s.Id, $"Set {Sets.Count + 1} · {members.Count} photos");
                 foreach (var m in members)
                 {
                     try
@@ -81,16 +114,82 @@ namespace PhotoCull.App.ViewModels
                         var rec = await _repo.GetImageByIdAsync(m.ImageId);
                         if (rec == null) continue;
                         var ivm = new ImageViewModel(rec);
+                        ivm.Recommendation = m.Recommendation;
+                        ivm.IsBestShot = m.IsBestShot;
                         await ivm.LoadExtrasAsync(_thumb, _repo, cache);
+                        ivm.PropertyChanged += ImagePropertyChanged;
                         svm.Members.Add(ivm);
                     }
                     catch { }
                 }
-                Sets.Add(svm);
+                if (svm.Members.Count >= 2)
+                    Sets.Add(svm);
+                else
+                    HiddenSetCount++;
             }
 
             SelectedSet = Sets.FirstOrDefault();
-            SelectedImage = SelectedSet?.Members.FirstOrDefault();
+            UpdateSummary();
+        }
+
+        private void ImagePropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(ImageViewModel.UserDecision))
+                UpdateSummary();
+        }
+
+        private void Unsubscribe(SetViewModel set)
+        {
+            foreach (var member in set.Members)
+                member.PropertyChanged -= ImagePropertyChanged;
+        }
+
+        private void UpdateSummary()
+        {
+            MarkedForDeleteCount = Sets.SelectMany(s => s.Members)
+                .Count(m => string.Equals(m.UserDecision, "Delete", StringComparison.OrdinalIgnoreCase));
+            var count = Sets.SelectMany(s => s.Members)
+                .Count(m => m.Recommendation == Recommendation.Delete);
+            Summary = $"{Sets.Count} sets to review · {count} photos recommended for deletion";
+        }
+
+        [RelayCommand]
+        public void SelectImage(ImageViewModel image)
+        {
+            if (image != null && SelectedSet?.Members.Contains(image) == true)
+                SelectedImage = image;
+        }
+
+        [RelayCommand]
+        public void NextImage()
+        {
+            if (SelectedSet == null || SelectedSet.Members.Count == 0) return;
+            var index = SelectedImage == null ? -1 : SelectedSet.Members.IndexOf(SelectedImage);
+            SelectedImage = SelectedSet.Members[(index + 1) % SelectedSet.Members.Count];
+        }
+
+        [RelayCommand]
+        public void PreviousImage()
+        {
+            if (SelectedSet == null || SelectedSet.Members.Count == 0) return;
+            var index = SelectedImage == null ? 0 : SelectedSet.Members.IndexOf(SelectedImage);
+            SelectedImage = SelectedSet.Members[(index - 1 + SelectedSet.Members.Count) % SelectedSet.Members.Count];
+        }
+
+        [RelayCommand]
+        public void NextSet()
+        {
+            if (Sets.Count == 0) return;
+            var index = SelectedSet == null ? -1 : Sets.IndexOf(SelectedSet);
+            SelectedSet = Sets[(index + 1) % Sets.Count];
+        }
+
+        [RelayCommand]
+        public void PreviousSet()
+        {
+            if (Sets.Count == 0) return;
+            var index = SelectedSet == null ? 0 : Sets.IndexOf(SelectedSet);
+            SelectedSet = Sets[(index - 1 + Sets.Count) % Sets.Count];
         }
 
         [RelayCommand]
@@ -98,35 +197,62 @@ namespace PhotoCull.App.ViewModels
         {
             if (SelectedImage == null) return;
             await _repo.SaveUserDecisionAsync(SelectedImage.Id, action);
+            var currentIndex = SelectedSet?.Members.IndexOf(SelectedImage) ?? -1;
             SelectedImage.UserDecision = action;
+            var members = SelectedSet?.Members;
+            var next = members == null
+                ? null
+                : members.Skip(currentIndex + 1).Concat(members.Take(currentIndex + 1))
+                    .FirstOrDefault(m => string.IsNullOrEmpty(m.UserDecision));
+            if (next != null) SelectedImage = next;
+        }
+
+        [RelayCommand]
+        public async Task AcceptRecommendationsForSet()
+        {
+            if (SelectedSet == null) return;
+            foreach (var image in SelectedSet.Members)
+            {
+                var decision = image.Recommendation.ToString();
+                await _repo.SaveUserDecisionAsync(image.Id, decision);
+                image.UserDecision = decision;
+            }
         }
 
         public async Task<PhotoCull.Core.Abstractions.DeletionPreview> PreviewDeleteAsync()
         {
-            // gather all images marked as Delete by user decision in selected set
-            if (SelectedSet == null) return new PhotoCull.Core.Abstractions.DeletionPreview(0,0);
-            var toDelete = SelectedSet.Members.Where(m => m.UserDecision == "Delete").Select(m => m.Path).ToList();
-            var preview = await _deleter.PreviewAsync(toDelete);
-            // return to caller
-            return preview;
+            var toDelete = Sets.SelectMany(s => s.Members)
+                .Where(m => string.Equals(m.UserDecision, "Delete", StringComparison.OrdinalIgnoreCase))
+                .Select(m => m.Path).ToList();
+            return await _deleter.PreviewAsync(toDelete);
         }
 
         [RelayCommand]
         public async Task ExecuteDeleteAsync(bool recycle)
         {
-            if (SelectedSet == null) return;
-            var toDelete = SelectedSet.Members.Where(m => m.UserDecision == "Delete").Select(m => m.Path).ToList();
+            var toDelete = Sets.SelectMany(s => s.Members)
+                .Where(m => string.Equals(m.UserDecision, "Delete", StringComparison.OrdinalIgnoreCase))
+                .Select(m => m.Path).ToList();
+            if (toDelete.Count == 0) return;
             var mode = recycle ? PhotoCull.Core.Abstractions.DeletionMode.Recycle : PhotoCull.Core.Abstractions.DeletionMode.Permanent;
             var report = await _deleter.ExecuteAsync(toDelete, mode);
-            // remove succeeded from UI
             foreach (var p in report.Succeeded)
             {
                 foreach (var s in Sets)
                 {
                     var found = s.Members.FirstOrDefault(x => x.Path == p);
-                    if (found != null) s.Members.Remove(found);
+                    if (found != null)
+                    {
+                        found.PropertyChanged -= ImagePropertyChanged;
+                        s.Members.Remove(found);
+                    }
                 }
             }
+            foreach (var s in Sets.Where(s => s.Members.Count == 0).ToList())
+                Sets.Remove(s);
+            if (SelectedSet == null || !Sets.Contains(SelectedSet))
+                SelectedSet = Sets.FirstOrDefault();
+            UpdateSummary();
         }
     }
 }
