@@ -20,7 +20,12 @@ namespace PhotoCull.Infrastructure
             services.AddSingleton<IExifReader, ExifReader>();
             services.AddSingleton<IHashService>(sp => new HashService(sp.GetService<PhotoCull.Core.Abstractions.IImageDecoder>()));
             services.AddSingleton<IQualityAnalyzer>(sp => new QualityAnalyzer(sp.GetService<PhotoCull.Core.Abstractions.IImageDecoder>()));
-            services.AddSingleton<IImageRepository, SqliteImageRepository>();
+            services.AddSingleton<IImageRepository>(_ =>
+            {
+                var dir = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData), "PhotoCull");
+                System.IO.Directory.CreateDirectory(dir);
+                return new SqliteImageRepository($"Data Source={System.IO.Path.Combine(dir, "photocull.db")}");
+            });
             services.AddSingleton<CullingPipeline>();
             // file operations + deletion service for safe deletes and undo
             services.AddSingleton<PhotoCull.Core.Abstractions.IDeletionService, DeletionService>();

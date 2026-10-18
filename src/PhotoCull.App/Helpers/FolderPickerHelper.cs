@@ -14,23 +14,11 @@ namespace PhotoCull.App.Helpers
             var picker = new FolderPicker();
             // On WinUI3 we must initialize with window handle
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
-            try
-            {
-                var pickerNative = picker.As<IInitializeWithWindow>();
-                pickerNative.Initialize(hwnd);
-            }
-            catch { }
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+            picker.FileTypeFilter.Add("*");
 
             var folder = await picker.PickSingleFolderAsync();
             return folder?.Path;
-        }
-
-        [ComImport]
-        [Guid("3E68D4BD-7135-4D3B-8F3A-6D52B5E9F6A9")]
-        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-        private interface IInitializeWithWindow
-        {
-            void Initialize(IntPtr hwnd);
         }
     }
 }

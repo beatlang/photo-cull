@@ -47,7 +47,11 @@ namespace PhotoCull.App
                 var vm = app.Services.GetService(typeof(MainWindowViewModel)) as MainWindowViewModel;
                 if (vm != null) RootGrid.DataContext = vm;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Serilog.Log.Error(ex, "Failed to create MainWindowViewModel");
+                throw;
+            }
         }
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
