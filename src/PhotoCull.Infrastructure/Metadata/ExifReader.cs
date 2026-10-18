@@ -24,6 +24,13 @@ namespace PhotoCull.Infrastructure.Metadata
                 var subIfd = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
                 var info = new ExifInfo();
 
+                if (subIfd != null)
+                {
+                    if (subIfd.TryGetDateTime(ExifDirectoryBase.TagDateTimeOriginal, out var captureTime) ||
+                        subIfd.TryGetDateTime(ExifDirectoryBase.TagDateTimeDigitized, out captureTime))
+                        info.CaptureTime = captureTime;
+                }
+
                 // Camera make/model
                 var make = exifIfd0?.GetDescription(ExifDirectoryBase.TagMake);
                 var model = exifIfd0?.GetDescription(ExifDirectoryBase.TagModel);

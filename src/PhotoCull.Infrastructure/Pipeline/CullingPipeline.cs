@@ -73,23 +73,25 @@ namespace PhotoCull.Infrastructure.Pipeline
                     }
                     catch { /* swallow thumbnail errors */ }
 
-                    // exif - best-effort
+                    // EXIF and hashes - best-effort
                     ExifInfo? exif = null;
+                    ulong? pHash = null;
+                    ulong? dHash = null;
+                    ulong? aHash = null;
                     try
                     {
                         using var fs = File.OpenRead(img.Path);
                         exif = _exifReader.ReadExif(fs);
                         if (fs.CanSeek) fs.Position = 0;
 
-                        // compute hashes
-                        ulong aHash = _hashService.ComputeAHash(fs);
+                        aHash = _hashService.ComputeAHash(fs);
                         if (fs.CanSeek) fs.Position = 0;
-                        ulong dHash = _hashService.ComputeDHash(fs);
+                        dHash = _hashService.ComputeDHash(fs);
                         if (fs.CanSeek) fs.Position = 0;
-                        ulong pHash = _hashService.ComputePHash(fs);
+                        pHash = _hashService.ComputePHash(fs);
 
-                        // store hashed as long? convert
-                        await _imageRepo.SaveHashesAsync(imageId, (long?)pHash, (long?)dHash, (long?)aHash);
+                        await _imageRepo.SaveHashesAsync(imageId, pHash.HasValue ? (long)pHash.Value : null,
+                            dHash.HasValue ? (long)dHash.Value : null, aHash.HasValue ? (long)aHash.Value : null);
                     }
                     catch
                     {
@@ -126,7 +128,7 @@ namespace PhotoCull.Infrastructure.Pipeline
                         }
                     }
 
-                    var feat = new ImageFeatures(imageId, img.CreatedUtc, null, null, null, embedding);
+                    var feat = new ImageFeatures(imageId, exif?.CaptureTime, pHash, dHash, aHash, embedding);
                     features.Add(feat);
 
                     p.Processed++;
@@ -145,6 +147,7 @@ namespace PhotoCull.Infrastructure.Pipeline
             var ranked = _ranker.Rank(clusters, qualities);
 
             // persist sets
+            await _imageRepo.ClearSetsAsync();
             int setIndex = 1;
             foreach (var cluster in clusters)
             {

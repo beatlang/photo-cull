@@ -16,9 +16,11 @@ namespace PhotoCull.App
     {
         private MainWindowViewModel? VM => RootGrid?.DataContext as MainWindowViewModel;
         private bool _syncing;
+        private readonly string? _startupError;
 
-        public MainWindow()
+        public MainWindow(string? startupError = null)
         {
+            _startupError = startupError;
             InitializeComponent();
             RootGrid.Loaded += MainWindow_Loaded;
 
@@ -49,6 +51,20 @@ namespace PhotoCull.App
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            if (_startupError != null)
+            {
+                var dialog = new ContentDialog
+                {
+                    XamlRoot = RootGrid.XamlRoot,
+                    Title = "PhotoCull cannot start",
+                    Content = _startupError,
+                    CloseButtonText = "Close"
+                };
+                await dialog.ShowAsync();
+                Close();
+                return;
+            }
+
             if (VM == null) return;
             VM.PropertyChanged += VM_PropertyChanged;
             await VM.LoadSetsAsync();

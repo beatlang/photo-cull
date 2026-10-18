@@ -10,6 +10,8 @@ namespace PhotoCull.App
     public partial class App : Application
     {
         public IServiceProvider Services { get; private set; }
+        private readonly string _modelPath;
+        private string? _startupError;
 
         public App()
         {
@@ -26,27 +28,31 @@ namespace PhotoCull.App
             var services = new ServiceCollection();
             services.AddPhotoCull();
 
-            // Try to wire optional AI model (ONNX) if available
-            try
+            var configuredModelPath = Environment.GetEnvironmentVariable("PHOTOCULL_MODEL");
+            _modelPath = string.IsNullOrWhiteSpace(configuredModelPath)
+                ? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PhotoCull", "models", "siglip-vision.onnx")
+                : configuredModelPath;
+
+            if (!System.IO.File.Exists(_modelPath))
             {
-                var modelPath = Environment.GetEnvironmentVariable("PHOTOCULL_MODEL")
-                                ?? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PhotoCull", "models", "siglip-vision.onnx");
-                if (System.IO.File.Exists(modelPath))
+                _startupError = $"The required AI model was not found at:{Environment.NewLine}{_modelPath}{Environment.NewLine}{Environment.NewLine}Download it with scripts\\download-models.ps1, then restart PhotoCull, or set PHOTOCULL_MODEL to a valid ONNX model file.";
+                Log.Logger.Error("Required ONNX model not found at {Model}", _modelPath);
+            }
+            else
+            {
+                try
                 {
-                    Log.Logger.Information("Loading ONNX model from {Model}", modelPath);
-                    var engine = new PhotoCull.Ai.Inference.OnnxInferenceEngine(modelPath);
+                    Log.Logger.Information("Loading required ONNX model from {Model}", _modelPath);
+                    var engine = new PhotoCull.Ai.Inference.OnnxInferenceEngine(_modelPath);
+                    engine.Initialize();
                     services.AddSingleton<PhotoCull.Core.Abstractions.IInferenceEngine>(engine);
-                    // default to SigLIP preset when model present
                     services.AddSingleton<PhotoCull.Core.Abstractions.IEmbeddingService>(sp => new PhotoCull.Ai.Embeddings.ImageEmbeddingService(engine, sp.GetRequiredService<PhotoCull.Core.Abstractions.IImageRepository>(), PhotoCull.Ai.Embeddings.PreprocessingOptions.SiglipPreset, null, sp.GetRequiredService<PhotoCull.Core.Abstractions.IImageDecoder>()));
                 }
-                else
+                catch (Exception ex)
                 {
-                    Log.Logger.Information("ONNX model not found at {Model}; embeddings will be disabled.", modelPath);
+                    _startupError = $"The required AI model could not be loaded from:{Environment.NewLine}{_modelPath}{Environment.NewLine}{Environment.NewLine}{ex.Message}";
+                    Log.Logger.Error(ex, "Failed to load required ONNX model from {Model}", _modelPath);
                 }
-            }
-            catch (Exception ex)
-            {
-                Log.Logger.Warning(ex, "Failed to initialize ONNX engine; embeddings disabled.");
             }
 
             services.AddSingleton<MainWindowViewModel>();
@@ -57,7 +63,7 @@ namespace PhotoCull.App
 
         protected override void OnLaunched(LaunchActivatedEventArgs args)
         {
-            var wnd = new MainWindow();
+            var wnd = new MainWindow(_startupError);
             wnd.Activate();
         }
     }

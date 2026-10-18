@@ -336,6 +336,28 @@ CREATE TABLE IF NOT EXISTS UserDecisions (
             tx.Commit();
         }
 
+        public Task ClearSetsAsync()
+        {
+            using var conn = GetConnection();
+            using var tx = conn.BeginTransaction();
+            using (var membersCmd = conn.CreateCommand())
+            {
+                membersCmd.Transaction = tx;
+                membersCmd.CommandText = "DELETE FROM SetMembers";
+                membersCmd.ExecuteNonQuery();
+            }
+
+            using (var setsCmd = conn.CreateCommand())
+            {
+                setsCmd.Transaction = tx;
+                setsCmd.CommandText = "DELETE FROM Sets";
+                setsCmd.ExecuteNonQuery();
+            }
+
+            tx.Commit();
+            return Task.CompletedTask;
+        }
+
         public async Task<IEnumerable<SetInfo>> ListSetsAsync()
         {
             var list = new List<SetInfo>();

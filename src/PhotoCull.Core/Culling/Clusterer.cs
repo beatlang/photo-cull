@@ -8,7 +8,7 @@ namespace PhotoCull.Core.Culling
 {
     public record ImageFeatures(
         long ImageId,
-        DateTime CaptureUtc,
+        DateTime? CaptureTime,
         ulong? PHash,
         ulong? DHash,
         ulong? AHash,
@@ -78,7 +78,8 @@ namespace PhotoCull.Core.Culling
         private bool AreSimilar(ImageFeatures a, ImageFeatures b)
         {
             // Burst time proximity
-            if (Math.Abs((a.CaptureUtc - b.CaptureUtc).TotalSeconds) <= _options.BurstWindow.TotalSeconds)
+            if (a.CaptureTime.HasValue && b.CaptureTime.HasValue &&
+                Math.Abs((a.CaptureTime.Value - b.CaptureTime.Value).TotalSeconds) <= _options.BurstWindow.TotalSeconds)
                 return true;
 
             // pHash similarity

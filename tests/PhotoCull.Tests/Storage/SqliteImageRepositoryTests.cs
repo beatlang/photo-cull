@@ -46,6 +46,9 @@ namespace PhotoCull.Tests.Storage
                 Assert.True(setId > 0);
                 await repo.SaveSetMembersAsync(setId, new[] { new SetMember(id, true, PhotoCull.Core.Recommendation.Keep) });
 
+                await repo.ClearSetsAsync();
+                Assert.Empty(await repo.ListSetsAsync());
+
                 await repo.SaveUserDecisionAsync(id, "keep");
                 var decision = await repo.LoadUserDecisionAsync(id);
                 Assert.Equal("keep", decision);

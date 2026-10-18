@@ -27,6 +27,19 @@ namespace PhotoCull.Tests.Culling
         }
 
         [Fact]
+        public void MissingCaptureTimesDoNotCluster()
+        {
+            var items = new[] {
+                new ImageFeatures(1, null, null, null, null, null),
+                new ImageFeatures(2, null, null, null, null, null),
+            };
+
+            var clusters = new Clusterer().Cluster(items);
+
+            Assert.Equal(2, clusters.Count);
+        }
+
+        [Fact]
         public void PHashShouldClusterCloseHashes()
         {
             // two hashes differing by 2 bits

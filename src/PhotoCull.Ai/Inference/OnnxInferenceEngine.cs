@@ -36,20 +36,14 @@ namespace PhotoCull.Ai.Inference
             }
         }
 
-                private void EnsureSession()
+        public void Initialize() => EnsureSession();
+
+        private void EnsureSession()
         {
             if (_session != null) return;
             _session = new InferenceSession(_modelPath, _options);
-            // populate metadata
-            try
-            {
-                InputNames = _session.InputMetadata.Keys.ToList();
-                OutputNames = _session.OutputMetadata.Keys.ToList();
-            }
-            catch
-            {
-                // ignore
-            }
+            InputNames = _session.InputMetadata.Keys.ToList();
+            OutputNames = _session.OutputMetadata.Keys.ToList();
         }
 
         public IReadOnlyDictionary<string, float[]> Run(IReadOnlyDictionary<string, Tensor<float>> inputs)

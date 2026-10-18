@@ -29,6 +29,7 @@ namespace PhotoCull.Core.Abstractions
 
         Task<long> CreateSetAsync(string name);
         Task SaveSetMembersAsync(long setId, IEnumerable<SetMember> members);
+        Task ClearSetsAsync() => Task.CompletedTask;
         Task<IEnumerable<SetInfo>> ListSetsAsync()
         {
             return Task.FromResult<IEnumerable<SetInfo>>(Array.Empty<SetInfo>());
