@@ -27,6 +27,7 @@ namespace PCull.App
             _settingsStore = settingsStore;
             _cullingSettings = cullingSettings;
             InitializeComponent();
+            AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "PCull.ico"));
             RootGrid.Loaded += MainWindow_Loaded;
 
             try

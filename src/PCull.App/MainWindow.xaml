@@ -33,23 +33,31 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="220"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <Button x:Name="PickFolderBtn" Grid.Column="0" Content="Pick folder &amp; scan"
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
+                            Spacing="10" Margin="0,0,16,0">
+                    <Image Width="36" Height="36" Source="ms-appx:///Assets/PCullLogo.svg"
+                           AutomationProperties.Name="PCull logo"/>
+                    <TextBlock Text="PCull" FontSize="20" FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+                <Button x:Name="PickFolderBtn" Grid.Column="1" Content="Pick folder &amp; scan"
                         ToolTipService.ToolTip="Choose a folder and scan for similar photos"/>
-                <Button x:Name="CancelBtn" Grid.Column="1" Content="Cancel" Margin="8,0,0,0"
+                <Button x:Name="CancelBtn" Grid.Column="2" Content="Cancel" Margin="8,0,0,0"
                         ToolTipService.ToolTip="Cancel the current scan"/>
-                <ProgressBar x:Name="ProgressBar" Grid.Column="3" Height="6" VerticalAlignment="Center"
+                <ProgressBar x:Name="ProgressBar" Grid.Column="4" Height="6" VerticalAlignment="Center"
                              Margin="18,0,8,0" Minimum="0" Maximum="100"
                              Value="{Binding Progress}"/>
-                <TextBlock Grid.Column="4" Text="{Binding StatusText}" VerticalAlignment="Center"
+                <TextBlock Grid.Column="5" Text="{Binding StatusText}" VerticalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,16,0"/>
-                <ToggleButton x:Name="CompareToggle" Grid.Column="5" Content="Compare"
+                <ToggleButton x:Name="CompareToggle" Grid.Column="6" Content="Compare"
                               ToolTipService.ToolTip="Compare best shot and selected image (C)"/>
-                <StackPanel Grid.Column="6" Orientation="Horizontal" HorizontalAlignment="Right"
+                <StackPanel Grid.Column="7" Orientation="Horizontal" HorizontalAlignment="Right"
                             VerticalAlignment="Center" Spacing="16">
                     <TextBlock Text="{Binding Summary}" VerticalAlignment="Center"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
