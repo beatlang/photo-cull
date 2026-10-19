@@ -269,6 +269,7 @@ namespace PhotoCull.App
         private async Task ShowSettingsDialog()
         {
             var burstWindow = CreateNumberBox(_cullingSettings.BurstWindowSeconds, 0, 600, 0.5, 5);
+            var comparisonWindow = CreateNumberBox(_cullingSettings.ComparisonWindowSeconds, 0, 86400, 5, 30);
             var pHashThreshold = CreateNumberBox(_cullingSettings.PHashHammingThreshold, 0, 64, 1, 4);
             var dHashThreshold = CreateNumberBox(_cullingSettings.DHashHammingThreshold, 0, 64, 1, 4);
             var embeddingThreshold = CreateNumberBox(_cullingSettings.EmbeddingCosineThreshold, 0, 1, 0.01, 0.05);
@@ -280,6 +281,7 @@ namespace PhotoCull.App
                 TextWrapping = TextWrapping.Wrap
             });
             AddSettingsField(content, "Capture-time window (seconds)", "Join photos taken within this time. 0 matches only identical timestamps.", burstWindow);
+            AddSettingsField(content, "Comparison window (seconds)", "Only photos taken within this time of each other are compared at all. Faster scans. 0 compares every photo with every other photo; photos without capture time are always compared.", comparisonWindow);
             AddSettingsField(content, "pHash maximum bit distance", "Lower values require more visually similar image structure.", pHashThreshold);
             AddSettingsField(content, "dHash maximum bit distance", "Lower values require more similar horizontal image gradients.", dHashThreshold);
             AddSettingsField(content, "AI embedding cosine similarity", "Higher values require more semantically similar images.", embeddingThreshold);
@@ -289,6 +291,7 @@ namespace PhotoCull.App
             {
                 var defaults = new CullingSettings();
                 burstWindow.Value = defaults.BurstWindowSeconds;
+                comparisonWindow.Value = defaults.ComparisonWindowSeconds;
                 pHashThreshold.Value = defaults.PHashHammingThreshold;
                 dHashThreshold.Value = defaults.DHashHammingThreshold;
                 embeddingThreshold.Value = defaults.EmbeddingCosineThreshold;
@@ -318,6 +321,7 @@ namespace PhotoCull.App
             var updatedSettings = new CullingSettings
             {
                 BurstWindowSeconds = burstWindow.Value,
+                ComparisonWindowSeconds = comparisonWindow.Value,
                 PHashHammingThreshold = (int)pHashThreshold.Value,
                 DHashHammingThreshold = (int)dHashThreshold.Value,
                 EmbeddingCosineThreshold = embeddingThreshold.Value
@@ -353,7 +357,7 @@ namespace PhotoCull.App
         private void UpdateSettingsButton()
         {
             ToolTipService.SetToolTip(SettingsBtn,
-                $"Grouping: {_cullingSettings.BurstWindowSeconds:g}s · pHash ≤{_cullingSettings.PHashHammingThreshold} · dHash ≤{_cullingSettings.DHashHammingThreshold} · AI ≥{_cullingSettings.EmbeddingCosineThreshold:0.00}");
+                $"Grouping: {_cullingSettings.BurstWindowSeconds:g}s · compare ≤{_cullingSettings.ComparisonWindowSeconds:g}s · pHash ≤{_cullingSettings.PHashHammingThreshold} · dHash ≤{_cullingSettings.DHashHammingThreshold} · AI ≥{_cullingSettings.EmbeddingCosineThreshold:0.00}");
         }
 
         private static void AddSettingsField(StackPanel panel, string label, string description, NumberBox input)

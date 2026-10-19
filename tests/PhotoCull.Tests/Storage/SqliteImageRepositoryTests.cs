@@ -13,6 +13,34 @@ namespace PhotoCull.Tests.Storage
     public class SqliteImageRepositoryTests
     {
         [Fact]
+        public async Task Upsert_ChangedFile_InvalidatesCachedFeatures_UnchangedKeepsThem()
+        {
+            var dbPath = Path.Combine(Path.GetTempPath(), $"photocull-test-{Guid.NewGuid()}.db");
+            try
+            {
+                using var repo = new SqliteImageRepository($"Data Source={dbPath}");
+                var modified = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                var id = await repo.UpsertImageAsync("/tmp/a.jpg", 100, 10, 10, "jpg", modified, modified);
+                await repo.SaveHashesAsync(id, 1, 2, null);
+                await repo.SaveQualityScoresAsync(id, new QualityScores(1, 2, 3, 4, 5));
+
+                await repo.UpsertImageAsync("/tmp/a.jpg", 100, 10, 10, "jpg", modified, modified);
+                var hashes = await repo.LoadHashesAsync(id);
+                Assert.Equal(2, hashes!.DHash);
+                Assert.NotNull(await repo.LoadQualityScoresAsync(id));
+
+                await repo.UpsertImageAsync("/tmp/a.jpg", 101, 10, 10, "jpg", modified, modified);
+                Assert.Null(await repo.LoadHashesAsync(id));
+                Assert.Null(await repo.LoadQualityScoresAsync(id));
+            }
+            finally
+            {
+                SqliteConnection.ClearAllPools();
+                if (File.Exists(dbPath)) File.Delete(dbPath);
+            }
+        }
+
+        [Fact]
         public async Task Upsert_SaveLoadEmbeddingAndScores_Work()
         {
             var dbPath = Path.Combine(Path.GetTempPath(), $"photocull-test-{Guid.NewGuid()}.db");

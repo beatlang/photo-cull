@@ -85,20 +85,40 @@ namespace PhotoCull.Infrastructure.Pipeline
                         // tolerate metadata errors
                     }
 
-                    // quality
+                    // quality (reuse persisted scores for unchanged images)
                     try
                     {
-                        using var fsq = File.OpenRead(img.Path);
-                        var qm = await _qualityAnalyzer.AnalyzeAsync(fsq);
-                        qualities[imageId] = qm;
-                        await _imageRepo.SaveQualityScoresAsync(imageId, new QualityScores(qm.Sharpness, qm.ExposureScore, qm.MeanBrightness, qm.NoiseEstimate, qm.Quality));
+                        var cached = await _imageRepo.LoadQualityScoresAsync(imageId);
+                        if (cached != null)
+                        {
+                            qualities[imageId] = new QualityMetrics
+                            {
+                                Sharpness = cached.Sharpness,
+                                IsBlurWarning = cached.Sharpness < 15.0f,
+                                ExposureScore = cached.Exposure,
+                                MeanBrightness = cached.Brightness,
+                                NoiseEstimate = cached.Noise,
+                                Quality = cached.Quality
+                            };
+                        }
+                        else
+                        {
+                            using var fsq = File.OpenRead(img.Path);
+                            var qm = await _qualityAnalyzer.AnalyzeAsync(fsq);
+                            qualities[imageId] = qm;
+                            await _imageRepo.SaveQualityScoresAsync(imageId, new QualityScores(qm.Sharpness, qm.ExposureScore, qm.MeanBrightness, qm.NoiseEstimate, qm.Quality));
+                        }
                     }
                     catch
                     {
                         // tolerate
                     }
 
-                    var feat = new ImageFeatures(imageId, exif?.CaptureTime, null, null, null, null);
+                    var stored = await _imageRepo.LoadHashesAsync(imageId);
+                    var feat = new ImageFeatures(imageId, exif?.CaptureTime,
+                        stored?.PHash is long ph ? unchecked((ulong)ph) : null,
+                        stored?.DHash is long dh ? unchecked((ulong)dh) : null,
+                        null, null);
                     features.Add(feat);
                     featuresById.Add(imageId, feat);
                     imagePaths.Add(imageId, img.Path);
@@ -164,6 +184,14 @@ namespace PhotoCull.Infrastructure.Pipeline
                     {
                         if (_embeddingService == null)
                             return current;
+
+                        var storedEmbedding = await _imageRepo.LoadEmbeddingAsync(imageId);
+                        if (storedEmbedding is { Length: > 0 })
+                        {
+                            var cachedFeature = current with { Embedding = storedEmbedding };
+                            featuresById[imageId] = cachedFeature;
+                            return cachedFeature;
+                        }
 
                         using var stream = File.OpenRead(path);
                         var embedding = await _embeddingService.CreateEmbeddingAsync(stream, token);

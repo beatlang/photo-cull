@@ -10,6 +10,8 @@ namespace PhotoCull.Core.Abstractions
     public record SetMember(long ImageId, bool IsBestShot, Recommendation Recommendation);
     public record SetInfo(long Id, string Name);
 
+    public record StoredHashes(long? PHash, long? DHash, long? AHash);
+
     public interface IImageRepository
     {
         Task<long> UpsertImageAsync(string path, long sizeBytes, int width, int height, string format, DateTime createdUtc, DateTime modifiedUtc);
@@ -27,6 +29,7 @@ namespace PhotoCull.Core.Abstractions
         Task<QualityScores?> LoadQualityScoresAsync(long imageId);
 
         Task SaveHashesAsync(long imageId, long? pHash, long? dHash, long? aHash);
+        Task<StoredHashes?> LoadHashesAsync(long imageId) => Task.FromResult<StoredHashes?>(null);
 
         Task<long> CreateSetAsync(string name);
         Task SaveSetMembersAsync(long setId, IEnumerable<SetMember> members);

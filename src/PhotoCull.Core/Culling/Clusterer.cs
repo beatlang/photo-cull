@@ -54,6 +54,10 @@ namespace PhotoCull.Core.Culling
         public int DHashHammingThreshold { get; init; } = 8;
         public double EmbeddingCosineThreshold { get; init; } = 0.9;
         public TimeSpan BurstWindow { get; init; } = TimeSpan.FromSeconds(2);
+
+        // Images with capture times further apart than this are never compared (pre-filter).
+        // Images without a capture time are always compared with everything. Null disables the pre-filter.
+        public TimeSpan? ComparisonWindow { get; init; } = TimeSpan.FromSeconds(60);
     }
 
     public class Clusterer
@@ -74,16 +78,13 @@ namespace PhotoCull.Core.Culling
             var adjacency = CreateAdjacency(list.Count);
             var matches = new List<ClusterMatch>();
 
-            for (int i = 0; i < list.Count; i++)
+            foreach (var (i, j) in CandidatePairs(list))
             {
-                for (int j = i + 1; j < list.Count; j++)
-                {
-                    var match = GetMatch(list[i], list[j]);
-                    if (match == null) continue;
-                    adjacency[i].Add(j);
-                    adjacency[j].Add(i);
-                    matches.Add(match);
-                }
+                var match = GetMatch(list[i], list[j]);
+                if (match == null) continue;
+                adjacency[i].Add(j);
+                adjacency[j].Add(i);
+                matches.Add(match);
             }
 
             return BuildResult(list, adjacency, matches);
@@ -100,21 +101,58 @@ namespace PhotoCull.Core.Culling
             var adjacency = CreateAdjacency(list.Count);
             var matches = new List<ClusterMatch>();
 
-            for (int i = 0; i < list.Count; i++)
+            foreach (var (i, j) in CandidatePairs(list))
             {
-                for (int j = i + 1; j < list.Count; j++)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var match = await GetMatchAsync(features[list[i].ImageId], features[list[j].ImageId],
-                        features, loadFeatureAsync, cancellationToken);
-                    if (match == null) continue;
-                    adjacency[i].Add(j);
-                    adjacency[j].Add(i);
-                    matches.Add(match);
-                }
+                cancellationToken.ThrowIfCancellationRequested();
+                var match = await GetMatchAsync(features[list[i].ImageId], features[list[j].ImageId],
+                    features, loadFeatureAsync, cancellationToken);
+                if (match == null) continue;
+                adjacency[i].Add(j);
+                adjacency[j].Add(i);
+                matches.Add(match);
             }
 
             return BuildResult(list, adjacency, matches);
+        }
+
+        // Yields index pairs (i < j) that are worth comparing. With a comparison window, timed images
+        // are sorted by capture time and only compared within the window.
+        private IEnumerable<(int, int)> CandidatePairs(IReadOnlyList<ImageFeatures> list)
+        {
+            if (_options.ComparisonWindow is not { } window)
+            {
+                for (int i = 0; i < list.Count; i++)
+                    for (int j = i + 1; j < list.Count; j++)
+                        yield return (i, j);
+                yield break;
+            }
+
+            double windowSeconds = window.TotalSeconds;
+            var timed = Enumerable.Range(0, list.Count)
+                .Where(i => list[i].CaptureTime.HasValue)
+                .OrderBy(i => list[i].CaptureTime!.Value)
+                .ToList();
+
+            for (int a = 0; a < timed.Count; a++)
+            {
+                var timeA = list[timed[a]].CaptureTime!.Value;
+                for (int b = a + 1; b < timed.Count; b++)
+                {
+                    if ((list[timed[b]].CaptureTime!.Value - timeA).TotalSeconds > windowSeconds)
+                        break;
+                    yield return (Math.Min(timed[a], timed[b]), Math.Max(timed[a], timed[b]));
+                }
+            }
+
+            for (int u = 0; u < list.Count; u++)
+            {
+                if (list[u].CaptureTime.HasValue) continue;
+                for (int k = 0; k < list.Count; k++)
+                {
+                    if (k == u || (k < u && !list[k].CaptureTime.HasValue)) continue;
+                    yield return (Math.Min(u, k), Math.Max(u, k));
+                }
+            }
         }
 
         private static List<int>[] CreateAdjacency(int count)

@@ -161,7 +161,7 @@ namespace PhotoCull.Tests.Culling
                 new ImageFeatures(2, now.AddMinutes(10), h2, null, null, null),
                 new ImageFeatures(3, now.AddMinutes(20), null, null, null, null),
             };
-            var clusterer = new Clusterer(new ClusterOptions { PHashHammingThreshold = 3, DHashHammingThreshold = 3 });
+            var clusterer = new Clusterer(new ClusterOptions { PHashHammingThreshold = 3, DHashHammingThreshold = 3, ComparisonWindow = null });
             var clusters = clusterer.Cluster(items);
             Assert.Equal(2, clusters.Count);
             // cluster containing 1 and 2
@@ -180,10 +180,40 @@ namespace PhotoCull.Tests.Culling
                 new ImageFeatures(2, now.AddMinutes(5), null, null, null, e2),
                 new ImageFeatures(3, now.AddMinutes(10), null, null, null, e3),
             };
-            var clusterer = new Clusterer(new ClusterOptions { EmbeddingCosineThreshold = 0.95 });
+            var clusterer = new Clusterer(new ClusterOptions { EmbeddingCosineThreshold = 0.95, ComparisonWindow = null });
             var clusters = clusterer.Cluster(items);
             Assert.Contains(clusters, c => c.Contains(1) && c.Contains(2));
             Assert.DoesNotContain(clusters, c => c.Contains(1) && c.Contains(3));
+        }
+
+        [Fact]
+        public async Task ComparisonWindowSkipsPairsOutsideWindowButComparesUntimedImages()
+        {
+            var now = DateTime.UnixEpoch;
+            const ulong hash = 0xF0F0UL;
+            var items = new[] {
+                new ImageFeatures(1, now, null, hash, null, null),
+                new ImageFeatures(2, now.AddSeconds(30), null, hash, null, null),
+                new ImageFeatures(3, now.AddMinutes(10), null, hash, null, null),
+                new ImageFeatures(4, null, null, hash, null, null),
+            };
+            var compared = new System.Collections.Generic.HashSet<long>();
+            var clusterer = new Clusterer(new ClusterOptions { ComparisonWindow = TimeSpan.FromSeconds(60) });
+            var result = await clusterer.ClusterDetailedAsync(items, (id, stage, _) =>
+            {
+                compared.Add(id);
+                return Task.FromResult(items.Single(i => i.ImageId == id));
+            });
+
+            // 3 is outside the window of 1 and 2, but untimed image 4 links everything.
+            Assert.Single(result.Clusters);
+            Assert.DoesNotContain(result.Matches, m =>
+                (m.ImageId == 1 && m.MatchedImageId == 3) || (m.ImageId == 3 && m.MatchedImageId == 1));
+
+            var withoutUntimed = items.Take(3).ToArray();
+            var result2 = await clusterer.ClusterDetailedAsync(withoutUntimed, (id, stage, _) =>
+                Task.FromResult(withoutUntimed.Single(i => i.ImageId == id)));
+            Assert.Equal(2, result2.Clusters.Count);
         }
     }
 }

@@ -151,6 +151,35 @@ CREATE TABLE IF NOT EXISTS UserDecisions (
             using var conn = GetConnection();
             using var tx = conn.BeginTransaction();
 
+            // Drop cached features when the file on disk changed, so stale values are never reused.
+            using (var check = conn.CreateCommand())
+            {
+                check.Transaction = tx;
+                check.CommandText = "SELECT Id, SizeBytes, ModifiedUtc FROM Images WHERE Path=@p";
+                check.Parameters.AddWithValue("@p", path);
+                long? existingId = null;
+                bool changed = false;
+                using (var rdr = await check.ExecuteReaderAsync())
+                {
+                    if (await rdr.ReadAsync())
+                    {
+                        existingId = rdr.GetInt64(0);
+                        changed = rdr.IsDBNull(1) || rdr.GetInt64(1) != sizeBytes
+                            || rdr.IsDBNull(2) || rdr.GetString(2) != modifiedUtc.ToString("o");
+                    }
+                }
+                if (existingId.HasValue && changed)
+                {
+                    using var del = conn.CreateCommand();
+                    del.Transaction = tx;
+                    del.CommandText = @"DELETE FROM Hashes WHERE ImageId=@id;
+DELETE FROM Embeddings WHERE ImageId=@id;
+DELETE FROM QualityScores WHERE ImageId=@id;";
+                    del.Parameters.AddWithValue("@id", existingId.Value);
+                    await del.ExecuteNonQueryAsync();
+                }
+            }
+
             // Try update
             using (var update = conn.CreateCommand())
             {
@@ -345,6 +374,21 @@ CREATE TABLE IF NOT EXISTS UserDecisions (
             cmd.Parameters.AddWithValue("@a", aHash.HasValue ? (object)aHash.Value : DBNull.Value);
             await cmd.ExecuteNonQueryAsync();
             tx.Commit();
+        }
+
+        public async Task<StoredHashes?> LoadHashesAsync(long imageId)
+        {
+            using var conn = GetConnection();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT PHash, DHash, AHash FROM Hashes WHERE ImageId=@id";
+            cmd.Parameters.AddWithValue("@id", imageId);
+            using var rdr = await cmd.ExecuteReaderAsync();
+            if (!await rdr.ReadAsync())
+                return null;
+            return new StoredHashes(
+                rdr.IsDBNull(0) ? null : rdr.GetInt64(0),
+                rdr.IsDBNull(1) ? null : rdr.GetInt64(1),
+                rdr.IsDBNull(2) ? null : rdr.GetInt64(2));
         }
 
         public async Task<long> CreateSetAsync(string name)
