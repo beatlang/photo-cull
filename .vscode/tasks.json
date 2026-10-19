@@ -7,7 +7,7 @@
                       "command":  "dotnet",
                       "args":  [
                                    "build",
-                                   "${workspaceFolder}/src/PhotoCull.App/PhotoCull.App.csproj",
+                                   "${workspaceFolder}/src/PCull.App/PCull.App.csproj",
                                    "-p:Platform=x64"
                                ],
                       "problemMatcher":  "$msCompile",
@@ -22,7 +22,7 @@
                       "command":  "dotnet",
                       "args":  [
                                    "test",
-                                   "${workspaceFolder}/tests/PhotoCull.Tests"
+                                   "${workspaceFolder}/tests/PCull.Tests"
                                ],
                       "problemMatcher":  "$msCompile",
                       "group":  "test"

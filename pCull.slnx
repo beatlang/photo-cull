@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PCull.Ai/PCull.Ai.csproj" />
+    <Project Path="src/PCull.App/PCull.App.csproj" />
+    <Project Path="src/PCull.Core/PCull.Core.csproj" />
+    <Project Path="src/PCull.Infrastructure/PCull.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PCull.Tests/PCull.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -2,12 +2,12 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "PhotoCull.App (x64)",
+      "name": "pCull.App (x64)",
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build-app",
-      "program": "${workspaceFolder}/src/PhotoCull.App/bin/x64/Debug/net10.0-windows10.0.19041.0/PhotoCull.App.exe",
-      "cwd": "${workspaceFolder}/src/PhotoCull.App",
+      "program": "${workspaceFolder}/src/PCull.App/bin/x64/Debug/net10.0-windows10.0.19041.0/PCull.App.exe",
+      "cwd": "${workspaceFolder}/src/PCull.App",
       "console": "internalConsole",
       "stopAtEntry": false
     }

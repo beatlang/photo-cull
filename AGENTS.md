@@ -1,10 +1,10 @@
-# PhotoCull Project Guidelines
+# pCull Project Guidelines
 
 These guidelines apply to all changes in this repository.
 
 ## Open Source and Licensing
 
-- PhotoCull is open source and licensed under the MIT License. Read `LICENSE` before changing license or copyright notices; do not remove or shorten them.
+- pCull is open source and licensed under the MIT License. Read `LICENSE` before changing license or copyright notices; do not remove or shorten them.
 - Use only code, libraries, models, and media whose licenses allow the intended use and redistribution. Verify the specific license before adding dependencies or external content.
 - Preserve required copyright, license, and attribution notices. Update `THIRD-PARTY-NOTICES.md` and relevant documentation when needed.
 - Do not copy code or content from sources with unknown, unclear, or incompatible licenses. Ask for clarification if licensing cannot be established; do not guess.
@@ -17,17 +17,18 @@ These guidelines apply to all changes in this repository.
 
 ## Product Principles
 
-- PhotoCull processes photos locally. Do not add cloud processing, telemetry, accounts, or network access to the app. Downloading the local model through `scripts/download-models.ps1` is the documented exception.
+- pCull processes photos locally. Do not add cloud processing, telemetry, accounts, or network access to the app. Downloading the local model through `scripts/download-models.ps1` is the documented exception.
 - The app must never delete photos automatically. Deletion must be explicitly confirmed by the user; preserve the preview and confirmation steps.
 - Preserve existing user behavior and local privacy guarantees when refactoring or adding features.
 
 ## Architecture
 
-- `src/PhotoCull.App`: WinUI interface, settings, and view models.
-- `src/PhotoCull.Core`: domain models, abstractions, and grouping and ranking logic.
-- `src/PhotoCull.Infrastructure`: file, image, metadata, storage, and pipeline implementations.
-- `src/PhotoCull.Ai`: ONNX inference and embeddings.
-- `tests/PhotoCull.Tests`: automated tests.
+- `src/PCull.App`: WinUI interface, settings, and view models.
+- `src/PCull.Core`: domain models, abstractions, and grouping and ranking logic.
+- `src/PCull.Infrastructure`: file, image, metadata, storage, and pipeline implementations.
+- `src/PCull.Ai`: ONNX inference and embeddings.
+- `tests/PCull.Tests`: automated tests.
+- Use `pCull` for product branding and `PCull` for C# namespaces and project identifiers.
 - Core is the domain foundation and must not depend on App, Infrastructure, or AI. Infrastructure and AI implement or consume Core abstractions; the App composes concrete services at the composition root.
 - Prefer dependencies on Core abstractions. Keep domain rules independent of concrete file, database, UI, or ONNX technologies. Address existing direct coupling, such as the ViewModel's dependency on the pipeline, when relevant; do not perform unnecessary rewrites.
 - Separate responsibilities: UI and view models handle interaction and UI state, the pipeline coordinates scans, Core contains domain decisions, and Infrastructure encapsulates technical details. Put new logic in the layer responsible for it.
@@ -43,7 +44,7 @@ These guidelines apply to all changes in this repository.
 - Keep this `AGENTS.md` up to date automatically: review it for every code, architecture, product, or build change, and update it in the same work when principles, workflows, or conventions change. Do not wait for a separate request. Do not add one-off implementation details; durable rules belong here, while detailed explanations belong in the appropriate project documentation.
 - Read existing code and follow established patterns. Keep changes focused and update directly related tests and documentation.
 - Do not broadly disable nullable warnings. Preserve the project's nullable and async patterns, and pass cancellation tokens through cancellable I/O and analysis operations.
-- Run tests with `dotnet test PhotoCull.slnx`. For application or cross-project configuration changes, build on Windows with `dotnet build PhotoCull.slnx`. Explicitly report missing SDKs, workloads, or platform requirements.
+- Run tests with `dotnet test pCull.slnx`. For application or cross-project configuration changes, build on Windows with `dotnet build pCull.slnx`. Explicitly report missing SDKs, workloads, or platform requirements.
 - Add or update tests for behavior changes, especially grouping thresholds and ordering, recommendations, deletion flows, error cases, and persistence. Use isolated test data rather than real user photos or production data.
 - Treat corrupt or unsupported individual photos as isolated failures where possible so scanning can continue; log and report failures clearly. Correctly abort on cancellation or overall operation failures, and do not report success when an operation failed.
 - Before changing database schemas, settings, or cache formats, check compatibility with existing installations and local user data. Apply required migrations explicitly and safely; never silently delete or overwrite user data.

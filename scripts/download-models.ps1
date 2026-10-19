@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 
 $local = $env:LOCALAPPDATA
 if (-not $local) { Write-Error "LOCALAPPDATA not set"; exit 1 }
-$modelsDir = Join-Path $local "PhotoCull\models"
+$modelsDir = Join-Path $local "pCull\models"
 New-Item -ItemType Directory -Path $modelsDir -Force | Out-Null
 
 $dest = Join-Path $modelsDir "siglip-vision.onnx"

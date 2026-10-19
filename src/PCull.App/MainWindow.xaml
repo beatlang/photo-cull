@@ -1,0 +1,291 @@
+<Window
+    x:Class="PCull.App.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:PCull.App"
+    Title="pCull">
+    <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
+          KeyDown="RootGrid_KeyDown" Padding="16">
+        <Grid.Resources>
+        <local:ScoreConverter x:Key="ScoreConverter"/>
+        <local:DecisionBrushConverter x:Key="DecisionBrushConverter"/>
+        <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <local:MatchStatusBrushConverter x:Key="MatchStatusBrushConverter"/>
+        <Style x:Key="PanelStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}"/>
+        </Style>
+        <Style x:Key="ActionButtonStyle" TargetType="Button">
+            <Setter Property="MinWidth" Value="88"/>
+            <Setter Property="Padding" Value="14,8"/>
+        </Style>
+        </Grid.Resources>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Style="{StaticResource PanelStyle}" Padding="12" Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="220"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Button x:Name="PickFolderBtn" Grid.Column="0" Content="Pick folder &amp; scan"
+                        ToolTipService.ToolTip="Choose a folder and scan for similar photos"/>
+                <Button x:Name="CancelBtn" Grid.Column="1" Content="Cancel" Margin="8,0,0,0"
+                        ToolTipService.ToolTip="Cancel the current scan"/>
+                <ProgressBar x:Name="ProgressBar" Grid.Column="3" Height="6" VerticalAlignment="Center"
+                             Margin="18,0,8,0" Minimum="0" Maximum="100"
+                             Value="{Binding Progress}"/>
+                <TextBlock Grid.Column="4" Text="{Binding StatusText}" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,16,0"/>
+                <ToggleButton x:Name="CompareToggle" Grid.Column="5" Content="Compare"
+                              ToolTipService.ToolTip="Compare best shot and selected image (C)"/>
+                <StackPanel Grid.Column="6" Orientation="Horizontal" HorizontalAlignment="Right"
+                            VerticalAlignment="Center" Spacing="16">
+                    <TextBlock Text="{Binding Summary}" VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <Button x:Name="SettingsBtn" ToolTipService.ToolTip="Configure photo grouping">
+                        <SymbolIcon Symbol="Setting"/>
+                        <AutomationProperties.Name>Grouping settings</AutomationProperties.Name>
+                    </Button>
+                    <Button x:Name="DeleteBtn" Content="Delete marked ("
+                            Background="{ThemeResource AccentFillColorDefaultBrush}"
+                            Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
+                            ToolTipService.ToolTip="Review and delete all marked photos">
+                        <Button.ContentTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Delete marked ("/>
+                                    <TextBlock Text="{Binding MarkedForDeleteCount}"/>
+                                    <TextBlock Text=")"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </Button.ContentTemplate>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="250"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="270"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource PanelStyle}" Padding="8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Sets to review" FontSize="18" FontWeight="SemiBold" Margin="8,4,8,12"/>
+                    <ListView x:Name="SetsList" Grid.Row="1" ItemsSource="{Binding Sets}"
+                              SelectedItem="{Binding SelectedSet, Mode=TwoWay}" SelectionMode="Single">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Padding="4" ColumnSpacing="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="60"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="60" Height="60" CornerRadius="6"
+                                            Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                        <Image Source="{Binding CoverUri}" Stretch="UniformToFill"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}" TextWrapping="Wrap"
+                                                   FontWeight="SemiBold"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Members.Count}"
+                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <TextBlock Text=" photos"
+                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid x:Name="PreviewHost">
+                    <ScrollViewer x:Name="ImageScroll" HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Auto" ZoomMode="Enabled" MinZoomFactor="0.1">
+                        <Image x:Name="MainImage" Stretch="Uniform"/>
+                    </ScrollViewer>
+                    <Grid x:Name="CompareGrid" Visibility="Collapsed" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Style="{StaticResource PanelStyle}" Padding="4">
+                            <ScrollViewer x:Name="CompareLeft" HorizontalScrollBarVisibility="Auto"
+                                          VerticalScrollBarVisibility="Auto" ZoomMode="Enabled" MinZoomFactor="0.1">
+                                <Image x:Name="CompareLeftImage" Stretch="Uniform"/>
+                            </ScrollViewer>
+                        </Border>
+                        <Border Grid.Column="1" Style="{StaticResource PanelStyle}" Padding="4">
+                            <ScrollViewer x:Name="CompareRight" HorizontalScrollBarVisibility="Auto"
+                                          VerticalScrollBarVisibility="Auto" ZoomMode="Enabled" MinZoomFactor="0.1">
+                                <Image x:Name="CompareRightImage" Stretch="Uniform"/>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                    <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Spacing="10" Visibility="Collapsed">
+                        <TextBlock x:Name="EmptyTitle" Text="Pick a folder to find photos to cull"
+                                   FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="pCull groups similar images so you can quickly keep the best ones."
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   HorizontalAlignment="Center"/>
+                        <Button Content="Pick folder &amp; scan" Click="PickFolder_Click"
+                                HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+
+                <ListView x:Name="Filmstrip" Grid.Row="1" Height="112" Margin="0,12,0,12"
+                          ItemsSource="{Binding SelectedSet.Members}"
+                          SelectedItem="{Binding SelectedImage, Mode=TwoWay}"
+                          SelectionMode="Single" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                    <ListView.ItemsPanel>
+                        <ItemsPanelTemplate><ItemsStackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                    </ListView.ItemsPanel>
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Width="92" Height="92" Margin="3">
+                                <Border CornerRadius="6" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                    <Image Source="{Binding ThumbnailUri}" Stretch="UniformToFill"/>
+                                </Border>
+                                <Border VerticalAlignment="Bottom" Background="{Binding Badge, Converter={StaticResource DecisionBrushConverter}}"
+                                        CornerRadius="0,0,6,6" Padding="5,2">
+                                    <TextBlock Text="{Binding Badge}" FontSize="10" Foreground="White"
+                                               HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="★" Visibility="{Binding IsBestShot, Converter={StaticResource BoolToVisibilityConverter}}" Foreground="Gold"
+                                           FontSize="18" Margin="5,2" HorizontalAlignment="Left"
+                                           VerticalAlignment="Top"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                    <Button x:Name="KeepBtn" Content="Keep" Style="{StaticResource ActionButtonStyle}"
+                            ToolTipService.ToolTip="Keep this photo (K)"/>
+                    <Button x:Name="ReviewBtn" Content="Review" Style="{StaticResource ActionButtonStyle}"
+                            ToolTipService.ToolTip="Mark this photo for review (R)"/>
+                    <Button x:Name="MarkDeleteBtn" Content="Delete" Style="{StaticResource ActionButtonStyle}"
+                            ToolTipService.ToolTip="Mark this photo for deletion (D)"/>
+                    <Button x:Name="FavBtn" Content="Favorite" Style="{StaticResource ActionButtonStyle}"
+                            ToolTipService.ToolTip="Mark this photo as favorite (F)"/>
+                    <Button x:Name="AcceptBtn" Content="Accept recommendations for set"
+                            ToolTipService.ToolTip="Apply recommendations to every photo in this set"/>
+                </StackPanel>
+            </Grid>
+
+            <Border Grid.Column="2" Style="{StaticResource PanelStyle}" Padding="16">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                  <StackPanel Spacing="12">
+                    <TextBlock Text="Photo details" FontSize="18" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="FileNameText" Text="No photo selected" FontSize="16"
+                               TextWrapping="Wrap" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="InfoText" Text="" TextWrapping="Wrap"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+                    <TextBlock Text="Quality scores" FontWeight="SemiBold"/>
+                    <TextBlock Text="Sharpness"/>
+                    <ProgressBar Maximum="100" Value="{Binding SelectedImage.Scores.Sharpness, Converter={StaticResource ScoreConverter}}"/>
+                    <TextBlock Text="Exposure"/>
+                    <ProgressBar Maximum="100" Value="{Binding SelectedImage.Scores.Exposure, Converter={StaticResource ScoreConverter}}"/>
+                    <TextBlock Text="Noise"/>
+                    <ProgressBar Maximum="100" Value="{Binding SelectedImage.Scores.Noise, Converter={StaticResource ScoreConverter}}"/>
+                    <TextBlock Text="Quality"/>
+                    <ProgressBar Maximum="100" Value="{Binding SelectedImage.Scores.Quality, Converter={StaticResource ScoreConverter}}"/>
+                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+                    <TextBlock Text="Why is this photo in the set?" FontWeight="SemiBold"
+                               AutomationProperties.Name="Grouping criteria for selected photo"/>
+                    <TextBlock Text="{Binding MatchDetailsStatus}" TextWrapping="Wrap"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <Ellipse Width="9" Height="9" Fill="IndianRed" VerticalAlignment="Center"/>
+                            <TextBlock Text="Connected" FontSize="11"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <Ellipse Width="9" Height="9" Fill="MediumSeaGreen" VerticalAlignment="Center"/>
+                            <TextBlock Text="Not matched" FontSize="11"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <Ellipse Width="9" Height="9" Fill="Gray" VerticalAlignment="Center"/>
+                            <TextBlock Text="Unavailable" FontSize="11"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <Ellipse Width="9" Height="9" Fill="DodgerBlue" VerticalAlignment="Center"/>
+                            <TextBlock Text="Skipped" FontSize="11"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding SelectedImageMatchReasons}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                        BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,8">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="{Binding FileName}" FontWeight="SemiBold"
+                                                   TextWrapping="Wrap" FontSize="14"/>
+                                        <ItemsControl ItemsSource="{Binding Criteria}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid ColumnSpacing="8" Padding="0,3">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="16"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Ellipse Width="10" Height="10"
+                                                                 Fill="{Binding Status, Converter={StaticResource MatchStatusBrushConverter}}"
+                                                                 VerticalAlignment="Center"
+                                                                 AutomationProperties.Name="{Binding Status}"/>
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="{Binding Measurement}" FontSize="12"
+                                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="2" Text="{Binding Status}"
+                                                                   VerticalAlignment="Center" FontSize="12"
+                                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="Sets are connected through direct matches; a chain can include photos that do not match each other directly."
+                               TextWrapping="Wrap" FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                  </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
