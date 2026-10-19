@@ -74,13 +74,24 @@ namespace PCull.Tests.Storage
 
                 var setId = await repo.CreateSetAsync("test-set");
                 Assert.True(setId > 0);
-                await repo.SaveSetMembersAsync(setId, new[] { new SetMember(id, true, PCull.Core.Recommendation.Keep) });
                 var otherId = await repo.UpsertImageAsync("/tmp/other.jpg", 567, 320, 240, "jpg", DateTime.UtcNow, DateTime.UtcNow);
+                await repo.SaveSetMembersAsync(setId, new[]
+                {
+                    new SetMember(id, true, PCull.Core.Recommendation.Keep),
+                    new SetMember(otherId, false, PCull.Core.Recommendation.Review)
+                });
+                var loadedMembers = (await repo.LoadSetMembersAsync(setId)).ToArray();
+                Assert.Equal(2, loadedMembers.Length);
+                Assert.Contains(loadedMembers, member => member.ImageId == id && member.IsBestShot);
+                Assert.Contains(loadedMembers, member => member.ImageId == otherId && !member.IsBestShot);
                 var match = new ClusterMatch(id, otherId, 1.25, 2, 3, 8, 2, 8, 0.95, 0.9,
                     ClusterCriterionEvaluation.CaptureTime | ClusterCriterionEvaluation.DHash);
-                await repo.SaveSetMatchesAsync(setId, new[] { match });
-                var loadedMatch = Assert.Single(await repo.LoadSetMatchesAsync(setId));
-                Assert.Equal(match, loadedMatch);
+                var reverseMatch = match with { ImageId = otherId, MatchedImageId = id };
+                await repo.SaveSetMatchesAsync(setId, new[] { match, reverseMatch });
+                var loadedMatches = (await repo.LoadSetMatchesAsync(setId)).ToArray();
+                Assert.Equal(2, loadedMatches.Length);
+                Assert.Contains(match, loadedMatches);
+                Assert.Contains(reverseMatch, loadedMatches);
 
                 await repo.SaveHashesAsync(id, null, 999, null);
                 await repo.SaveHashesAsync(id, 123, null, null);

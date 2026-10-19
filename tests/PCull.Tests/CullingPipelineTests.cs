@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using PCull.Core;
 using PCull.Core.Abstractions;
+using PCull.Core.Culling;
 using PCull.Core.Models;
 using PCull.Infrastructure.Pipeline;
 using Xunit;
@@ -49,6 +50,23 @@ public class CullingPipelineTests
     }
 
     [Fact]
+    public async Task Saving_partitions_members_and_matches_by_cluster_once()
+    {
+        var repo = new FakeRepository();
+        var pipeline = Create(new[] { Image(ExistingPath), Image(ExistingPath) }, repo, hash: new UniqueHash());
+
+        await pipeline.RunAsync("folder", "cache", clusterOptions: new ClusterOptions
+        {
+            DHashHammingThreshold = 0,
+            PHashHammingThreshold = 0
+        });
+
+        Assert.Equal(2, repo.SavedSetMembers.Count);
+        Assert.Equal(new long[] { 1, 2 }, repo.SavedSetMembers.Select(members => Assert.Single(members).ImageId));
+        Assert.All(repo.SavedSetMatches, Assert.Empty);
+    }
+
+    [Fact]
     public async Task Cancellation_propagates_without_counting_error_or_saving()
     {
         using var cts = new CancellationTokenSource();
@@ -60,8 +78,8 @@ public class CullingPipelineTests
         Assert.False(repo.SetsCleared);
     }
 
-    private static CullingPipeline Create(IEnumerable<ImageRecord> images, FakeRepository? repo = null, IThumbnailService? thumbnail = null)
-        => new(new FakeScanner(images), thumbnail ?? new FakeThumbnail(), new FakeExif(), new FakeHash(),
+    private static CullingPipeline Create(IEnumerable<ImageRecord> images, FakeRepository? repo = null, IThumbnailService? thumbnail = null, IHashService? hash = null)
+        => new(new FakeScanner(images), thumbnail ?? new FakeThumbnail(), new FakeExif(), hash ?? new FakeHash(),
             new FakeQuality(), repo ?? new FakeRepository());
 
     private sealed class ImmediateProgress(List<PipelineProgress> reports) : IProgress<PipelineProgress>
@@ -112,6 +130,16 @@ public class CullingPipelineTests
         public bool IsNearDuplicate(ulong a, ulong b, int maxDistance) => true;
     }
 
+    private sealed class UniqueHash : IHashService
+    {
+        private ulong _nextHash;
+        public ulong ComputeAHash(Stream stream) => _nextHash++;
+        public ulong ComputeDHash(Stream stream) => _nextHash++;
+        public ulong ComputePHash(Stream stream) => _nextHash++;
+        public int HammingDistance(ulong a, ulong b) => 0;
+        public bool IsNearDuplicate(ulong a, ulong b, int maxDistance) => true;
+    }
+
     private sealed class FakeQuality : IQualityAnalyzer
     {
         public Task<QualityMetrics> AnalyzeAsync(Stream imageStream) => Task.FromResult(new QualityMetrics());
@@ -122,6 +150,8 @@ public class CullingPipelineTests
         private long _nextId;
         public string? FailingPath { get; init; }
         public bool SetsCleared { get; private set; }
+        public List<SetMember[]> SavedSetMembers { get; } = new();
+        public List<PCull.Core.Culling.ClusterMatch[]> SavedSetMatches { get; } = new();
 
         public Task<long> UpsertImageAsync(string path, long sizeBytes, int width, int height, string format, System.DateTime createdUtc, System.DateTime modifiedUtc)
             => FailingPath == path ? Task.FromException<long>(new InvalidOperationException("upsert failed")) : Task.FromResult(++_nextId);
@@ -134,8 +164,8 @@ public class CullingPipelineTests
         public Task SaveHashesAsync(long imageId, long? pHash, long? dHash, long? aHash) => Task.CompletedTask;
         public Task<StoredHashes?> LoadHashesAsync(long imageId) => Task.FromResult<StoredHashes?>(null);
         public Task<long> CreateSetAsync(string name) => Task.FromResult(1L);
-        public Task SaveSetMembersAsync(long setId, IEnumerable<SetMember> members) => Task.CompletedTask;
-        public Task SaveSetMatchesAsync(long setId, IEnumerable<PCull.Core.Culling.ClusterMatch> matches) => Task.CompletedTask;
+        public Task SaveSetMembersAsync(long setId, IEnumerable<SetMember> members) { SavedSetMembers.Add(members.ToArray()); return Task.CompletedTask; }
+        public Task SaveSetMatchesAsync(long setId, IEnumerable<PCull.Core.Culling.ClusterMatch> matches) { SavedSetMatches.Add(matches.ToArray()); return Task.CompletedTask; }
         public Task ClearSetsAsync() { SetsCleared = true; return Task.CompletedTask; }
         public Task SaveUserDecisionAsync(long imageId, string action) => Task.CompletedTask;
         public Task<string?> LoadUserDecisionAsync(long imageId) => Task.FromResult<string?>(null);

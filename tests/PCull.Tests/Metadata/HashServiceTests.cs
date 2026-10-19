@@ -76,6 +76,19 @@ namespace PCull.Tests.Metadata
             Assert.True(d <= 12, $"Distance was {d}");
         }
 
+        [Theory]
+        [InlineData(300, 100)]
+        [InlineData(100, 300)]
+        [InlineData(1, 50)]
+        public void NonSquareImages_ComputeAllHashesWithoutError(int width, int height)
+        {
+            using var stream = CreatePatternedImage(width, height, ((byte)255, (byte)0, (byte)0), ((byte)0, (byte)0, (byte)255));
+            var svc = new HashService();
+            svc.ComputeAHash(stream);
+            svc.ComputeDHash(stream);
+            svc.ComputePHash(stream);
+        }
+
         [Fact]
         public void DifferentImage_IsNotNearDuplicate()
         {

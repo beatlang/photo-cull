@@ -172,17 +172,44 @@ namespace PCull.Infrastructure.Pipeline
             Report();
             cancellationToken.ThrowIfCancellationRequested();
             await _imageRepo.ClearSetsAsync();
+            var membersByCluster = clusters.Select(_ => new List<SetMember>()).ToArray();
+            var matchesByCluster = clusters.Select(_ => new List<ClusterMatch>()).ToArray();
+            var clusterIndexByImageId = new Dictionary<long, int>();
+            for (int clusterIndex = 0; clusterIndex < clusters.Count; clusterIndex++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                foreach (var imageId in clusters[clusterIndex])
+                    clusterIndexByImageId.Add(imageId, clusterIndex);
+            }
+
+            foreach (var member in ranked)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!clusterIndexByImageId.TryGetValue(member.ImageId, out var clusterIndex))
+                    continue;
+
+                membersByCluster[clusterIndex].Add(member);
+            }
+
+            foreach (var match in clusterResult.Matches)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (clusterIndexByImageId.TryGetValue(match.ImageId, out var clusterIndex)
+                    && clusterIndexByImageId.TryGetValue(match.MatchedImageId, out var matchedImageClusterIndex)
+                    && clusterIndex == matchedImageClusterIndex)
+                {
+                    matchesByCluster[clusterIndex].Add(match);
+                }
+            }
+
             int setIndex = 1;
-            foreach (var cluster in clusters)
+            for (int clusterIndex = 0; clusterIndex < clusters.Count; clusterIndex++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var name = $"set-{setIndex++}";
                 long setId = await _imageRepo.CreateSetAsync(name);
-                var members = ranked.Where(m => cluster.Contains(m.ImageId));
-                await _imageRepo.SaveSetMembersAsync(setId, members);
-                var matches = clusterResult.Matches.Where(match =>
-                    cluster.Contains(match.ImageId) && cluster.Contains(match.MatchedImageId));
-                await _imageRepo.SaveSetMatchesAsync(setId, matches);
+                await _imageRepo.SaveSetMembersAsync(setId, membersByCluster[clusterIndex]);
+                await _imageRepo.SaveSetMatchesAsync(setId, matchesByCluster[clusterIndex]);
             }
 
             Report();

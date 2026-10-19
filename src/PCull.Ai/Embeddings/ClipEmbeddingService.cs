@@ -131,22 +131,37 @@ namespace PCull.Ai.Embeddings
                 resizedHeight = Math.Max((uint)target, (uint)Math.Ceiling(img.Height * scale));
             }
 
-            img.Resize(resizedWidth, resizedHeight, FilterType.Cubic);
+            img.Resize(new MagickGeometry(resizedWidth, resizedHeight)
+            {
+                IgnoreAspectRatio = opts.StretchNoCrop
+            }, FilterType.Cubic);
             img.ColorSpace = ColorSpace.sRGB;
-            byte[] rgb = img.GetPixels().ToByteArray("RGB");
-            int cropX = (int)((resizedWidth - (uint)target) / 2);
-            int cropY = (int)((resizedHeight - (uint)target) / 2);
+            int sourceWidth = checked((int)img.Width);
+            int sourceHeight = checked((int)img.Height);
+            if (sourceWidth < target || sourceHeight < target)
+                throw new InvalidDataException(
+                    $"The resized pixel image is {sourceWidth}x{sourceHeight}, smaller than the requested {target}x{target} embedding crop.");
+
+            byte[] pixelData = img.GetPixels().ToByteArray("RGB");
+            int pixelCount = checked(sourceWidth * sourceHeight);
+            int expectedPixelDataLength = checked(pixelCount * 3);
+            if (pixelData.Length != expectedPixelDataLength)
+                throw new InvalidDataException(
+                    $"Expected an RGB pixel buffer of {expectedPixelDataLength} bytes for {sourceWidth}x{sourceHeight}, found {pixelData.Length}.");
+
+            int cropX = (sourceWidth - target) / 2;
+            int cropY = (sourceHeight - target) / 2;
 
             var tensor = new DenseTensor<float>(new[] { 1, 3, target, target });
             for (int y = 0; y < target; y++)
             {
-                int sourceRow = (y + cropY) * (int)resizedWidth;
+                int sourceRow = (y + cropY) * sourceWidth;
                 for (int x = 0; x < target; x++)
                 {
                     int offset = (sourceRow + x + cropX) * 3;
-                    float r = rgb[offset] * opts.Rescale;
-                    float g = rgb[offset + 1] * opts.Rescale;
-                    float b = rgb[offset + 2] * opts.Rescale;
+                    float r = pixelData[offset] * opts.Rescale;
+                    float g = pixelData[offset + 1] * opts.Rescale;
+                    float b = pixelData[offset + 2] * opts.Rescale;
                     tensor[0, 0, y, x] = (r - opts.Mean[0]) / opts.Std[0];
                     tensor[0, 1, y, x] = (g - opts.Mean[1]) / opts.Std[1];
                     tensor[0, 2, y, x] = (b - opts.Mean[2]) / opts.Std[2];

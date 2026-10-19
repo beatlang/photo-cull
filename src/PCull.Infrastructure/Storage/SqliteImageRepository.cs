@@ -408,15 +408,18 @@ DELETE FROM QualityScores WHERE ImageId=@id;";
         {
             using var conn = GetConnection();
             using var tx = conn.BeginTransaction();
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = "INSERT OR REPLACE INTO SetMembers (SetId, ImageId, IsBestShot, Recommendation) VALUES (@set,@img,@best,@rec)";
+            cmd.Parameters.AddWithValue("@set", setId);
+            var imageParameter = cmd.Parameters.AddWithValue("@img", 0L);
+            var bestShotParameter = cmd.Parameters.AddWithValue("@best", 0);
+            var recommendationParameter = cmd.Parameters.AddWithValue("@rec", 0);
             foreach (var m in members)
             {
-                using var cmd = conn.CreateCommand();
-                cmd.Transaction = tx;
-                cmd.CommandText = "INSERT OR REPLACE INTO SetMembers (SetId, ImageId, IsBestShot, Recommendation) VALUES (@set,@img,@best,@rec)";
-                cmd.Parameters.AddWithValue("@set", setId);
-                cmd.Parameters.AddWithValue("@img", m.ImageId);
-                cmd.Parameters.AddWithValue("@best", m.IsBestShot ? 1 : 0);
-                cmd.Parameters.AddWithValue("@rec", (int)m.Recommendation);
+                imageParameter.Value = m.ImageId;
+                bestShotParameter.Value = m.IsBestShot ? 1 : 0;
+                recommendationParameter.Value = (int)m.Recommendation;
                 await cmd.ExecuteNonQueryAsync();
             }
             tx.Commit();
@@ -426,28 +429,39 @@ DELETE FROM QualityScores WHERE ImageId=@id;";
         {
             using var conn = GetConnection();
             using var tx = conn.BeginTransaction();
+            using var cmd = conn.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = @"INSERT OR REPLACE INTO SetMatches (
+                SetId, ImageId, MatchedImageId, CaptureTimeDifferenceSeconds, BurstWindowSeconds,
+                PHashDistance, PHashThreshold, DHashDistance, DHashThreshold,
+                EmbeddingCosineSimilarity, EmbeddingCosineThreshold, EvaluatedCriteria)
+                VALUES (@set,@image,@matched,@timeDiff,@timeWindow,@pHashDist,@pHashThreshold,
+                @dHashDist,@dHashThreshold,@embedding,@embeddingThreshold,@evaluated)";
+            cmd.Parameters.AddWithValue("@set", setId);
+            var imageParameter = cmd.Parameters.AddWithValue("@image", 0L);
+            var matchedImageParameter = cmd.Parameters.AddWithValue("@matched", 0L);
+            var timeDifferenceParameter = cmd.Parameters.AddWithValue("@timeDiff", DBNull.Value);
+            var timeWindowParameter = cmd.Parameters.AddWithValue("@timeWindow", DBNull.Value);
+            var pHashDistanceParameter = cmd.Parameters.AddWithValue("@pHashDist", DBNull.Value);
+            var pHashThresholdParameter = cmd.Parameters.AddWithValue("@pHashThreshold", DBNull.Value);
+            var dHashDistanceParameter = cmd.Parameters.AddWithValue("@dHashDist", DBNull.Value);
+            var dHashThresholdParameter = cmd.Parameters.AddWithValue("@dHashThreshold", DBNull.Value);
+            var embeddingParameter = cmd.Parameters.AddWithValue("@embedding", DBNull.Value);
+            var embeddingThresholdParameter = cmd.Parameters.AddWithValue("@embeddingThreshold", DBNull.Value);
+            var evaluatedCriteriaParameter = cmd.Parameters.AddWithValue("@evaluated", 0);
             foreach (var match in matches)
             {
-                using var cmd = conn.CreateCommand();
-                cmd.Transaction = tx;
-                cmd.CommandText = @"INSERT OR REPLACE INTO SetMatches (
-                    SetId, ImageId, MatchedImageId, CaptureTimeDifferenceSeconds, BurstWindowSeconds,
-                    PHashDistance, PHashThreshold, DHashDistance, DHashThreshold,
-                    EmbeddingCosineSimilarity, EmbeddingCosineThreshold, EvaluatedCriteria)
-                    VALUES (@set,@image,@matched,@timeDiff,@timeWindow,@pHashDist,@pHashThreshold,
-                    @dHashDist,@dHashThreshold,@embedding,@embeddingThreshold,@evaluated)";
-                cmd.Parameters.AddWithValue("@set", setId);
-                cmd.Parameters.AddWithValue("@image", match.ImageId);
-                cmd.Parameters.AddWithValue("@matched", match.MatchedImageId);
-                cmd.Parameters.AddWithValue("@timeDiff", DbValue(match.CaptureTimeDifferenceSeconds));
-                cmd.Parameters.AddWithValue("@timeWindow", DbValue(match.BurstWindowSeconds));
-                cmd.Parameters.AddWithValue("@pHashDist", DbValue(match.PHashDistance));
-                cmd.Parameters.AddWithValue("@pHashThreshold", DbValue(match.PHashThreshold));
-                cmd.Parameters.AddWithValue("@dHashDist", DbValue(match.DHashDistance));
-                cmd.Parameters.AddWithValue("@dHashThreshold", DbValue(match.DHashThreshold));
-                cmd.Parameters.AddWithValue("@embedding", DbValue(match.EmbeddingCosineSimilarity));
-                cmd.Parameters.AddWithValue("@embeddingThreshold", DbValue(match.EmbeddingCosineThreshold));
-                cmd.Parameters.AddWithValue("@evaluated", (int)match.EvaluatedCriteria);
+                imageParameter.Value = match.ImageId;
+                matchedImageParameter.Value = match.MatchedImageId;
+                timeDifferenceParameter.Value = DbValue(match.CaptureTimeDifferenceSeconds);
+                timeWindowParameter.Value = DbValue(match.BurstWindowSeconds);
+                pHashDistanceParameter.Value = DbValue(match.PHashDistance);
+                pHashThresholdParameter.Value = DbValue(match.PHashThreshold);
+                dHashDistanceParameter.Value = DbValue(match.DHashDistance);
+                dHashThresholdParameter.Value = DbValue(match.DHashThreshold);
+                embeddingParameter.Value = DbValue(match.EmbeddingCosineSimilarity);
+                embeddingThresholdParameter.Value = DbValue(match.EmbeddingCosineThreshold);
+                evaluatedCriteriaParameter.Value = (int)match.EvaluatedCriteria;
                 await cmd.ExecuteNonQueryAsync();
             }
             tx.Commit();

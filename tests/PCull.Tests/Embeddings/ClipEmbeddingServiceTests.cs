@@ -42,6 +42,35 @@ namespace PCull.Tests.Embeddings
         }
 
         [Fact]
+        public async Task Preprocessing_GrayscalePixelBuffer_ExpandsGrayAcrossRgbChannels()
+        {
+            using var img = TestImages.Solid(7, 5, 128, 128, 128);
+            img.ColorType = ColorType.Grayscale;
+            Assert.Equal(7 * 5 * 3, img.GetPixels().ToByteArray("RGB").Length);
+            using var ms = TestImages.ToStream(img, MagickFormat.Png);
+
+            var options = new PreprocessingOptions(
+                2,
+                new[] { 0f, 0f, 0f },
+                new[] { 1f, 1f, 1f },
+                StretchNoCrop: true,
+                Resampler: "Bicubic",
+                Rescale: 1f / 255f);
+            var engine = new CaptureInferenceEngine(returnVectorLength: 1);
+            var svc = new ImageEmbeddingService(engine, new NoopImageRepo(), options);
+
+            await svc.CreateEmbeddingAsync(ms);
+
+            var tensor = Assert.IsType<DenseTensor<float>>(engine.LastInput);
+            Assert.Equal(2, tensor.Dimensions[2]);
+            Assert.Equal(2, tensor.Dimensions[3]);
+            float expected = 128f / 255f;
+            Assert.Equal(expected, tensor[0, 0, 0, 0], 5);
+            Assert.Equal(expected, tensor[0, 1, 0, 0], 5);
+            Assert.Equal(expected, tensor[0, 2, 0, 0], 5);
+        }
+
+        [Fact]
         public async Task Embedding_IsL2Normalized_And_Saved()
         {
             using var img = TestImages.Solid(224, 224, 0, 0, 0);

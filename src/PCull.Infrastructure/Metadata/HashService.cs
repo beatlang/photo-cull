@@ -43,9 +43,15 @@ namespace PCull.Infrastructure.Metadata
 
         private static byte[] ResizeToRgb(MagickImage image, uint width, uint height, FilterType filter)
         {
-            image.Resize(width, height, filter);
+            // Hashes need an exact grid, so the aspect ratio must not be preserved.
+            image.FilterType = filter;
+            image.Resize(new MagickGeometry(width, height) { IgnoreAspectRatio = true });
             image.ColorSpace = ColorSpace.sRGB;
-            return image.GetPixels().ToByteArray("RGB");
+            var rgb = image.GetPixels().ToByteArray("RGB")
+                ?? throw new InvalidOperationException("Could not read pixel data.");
+            if (rgb.Length < checked((int)(width * height * 3)))
+                throw new InvalidDataException("Unexpected pixel buffer size.");
+            return rgb;
         }
 
         private static double Luminance(byte[] rgb, int pixelIndex)
