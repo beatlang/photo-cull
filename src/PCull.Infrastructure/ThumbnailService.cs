@@ -49,7 +49,11 @@ namespace PCull.Infrastructure
                 using var stream = File.OpenRead(imagePath);
                 using var memory = new MemoryStream();
                 await stream.CopyToAsync(memory, cancellationToken).ConfigureAwait(false);
-                using var image = new MagickImage(memory.ToArray());
+                var readSettings = new MagickReadSettings();
+                // JPEG shrink-on-load: decode at reduced size (at least 2x the thumbnail) instead of full resolution.
+                var hint = Math.Max(_maxSize * 2, 256);
+                readSettings.SetDefine(MagickFormat.Jpeg, "size", $"{hint}x{hint}");
+                using var image = new MagickImage(memory.ToArray(), readSettings);
                 image.AutoOrient();
 
                 var size = Math.Max(image.Width, image.Height);

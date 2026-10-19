@@ -17,6 +17,20 @@
                                 }
                   },
                   {
+                      "label":  "Run app (Release, no debugger)",
+                      "type":  "process",
+                      "command":  "dotnet",
+                      "args":  [
+                                   "run",
+                                   "--project",
+                                   "${workspaceFolder}/src/PCull.App/PCull.App.csproj",
+                                   "--configuration",
+                                   "Release",
+                                   "-p:Platform=x64"
+                               ],
+                      "problemMatcher":  "$msCompile"
+                  },
+                  {
                       "label":  "test",
                       "type":  "process",
                       "command":  "dotnet",

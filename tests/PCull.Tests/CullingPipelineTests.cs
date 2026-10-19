@@ -20,7 +20,8 @@ public class CullingPipelineTests
     [Fact]
     public async Task Reports_phases_and_final_scan_total()
     {
-        var pipeline = Create(new[] { Image(ExistingPath), Image(ExistingPath) });
+        var repo = new FakeRepository();
+        var pipeline = Create(new[] { Image(ExistingPath), Image(ExistingPath) }, repo);
         var reports = new List<PipelineProgress>();
 
         var result = await pipeline.RunAsync("folder", "cache", new ImmediateProgress(reports));
@@ -31,6 +32,7 @@ public class CullingPipelineTests
         Assert.Contains(reports, p => p.Phase == PipelinePhase.Analyzing && p.Scanned == 2);
         Assert.Contains(reports, p => p.Phase == PipelinePhase.Grouping && p.Scanned == 2);
         Assert.Contains(reports, p => p.Phase == PipelinePhase.Saving && p.Scanned == 2);
+        Assert.Equal(new[] { ExistingPath, ExistingPath }, repo.PrunedPaths);
         Assert.All(reports.Skip(1), p => Assert.NotSame(reports[0], p));
     }
 
@@ -76,6 +78,39 @@ public class CullingPipelineTests
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
             pipeline.RunAsync("folder", "cache", cancellationToken: cts.Token));
         Assert.False(repo.SetsCleared);
+        Assert.Null(repo.PrunedPaths);
+    }
+
+    [Fact]
+    public async Task Empty_valid_folder_prunes_all_images()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), $"pcull-empty-{System.Guid.NewGuid()}");
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var repo = new FakeRepository();
+            var pipeline = Create(Array.Empty<ImageRecord>(), repo);
+
+            await pipeline.RunAsync(folder, "cache");
+
+            Assert.Empty(repo.PrunedPaths!);
+        }
+        finally
+        {
+            Directory.Delete(folder);
+        }
+    }
+
+    [Fact]
+    public async Task Missing_folder_does_not_prune_images()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), $"pcull-missing-{System.Guid.NewGuid()}");
+        var repo = new FakeRepository();
+        var pipeline = Create(Array.Empty<ImageRecord>(), repo);
+
+        await pipeline.RunAsync(folder, "cache");
+
+        Assert.Null(repo.PrunedPaths);
     }
 
     private static CullingPipeline Create(IEnumerable<ImageRecord> images, FakeRepository? repo = null, IThumbnailService? thumbnail = null, IHashService? hash = null)
@@ -150,6 +185,7 @@ public class CullingPipelineTests
         private long _nextId;
         public string? FailingPath { get; init; }
         public bool SetsCleared { get; private set; }
+        public string[]? PrunedPaths { get; private set; }
         public List<SetMember[]> SavedSetMembers { get; } = new();
         public List<PCull.Core.Culling.ClusterMatch[]> SavedSetMatches { get; } = new();
 
@@ -167,6 +203,7 @@ public class CullingPipelineTests
         public Task SaveSetMembersAsync(long setId, IEnumerable<SetMember> members) { SavedSetMembers.Add(members.ToArray()); return Task.CompletedTask; }
         public Task SaveSetMatchesAsync(long setId, IEnumerable<PCull.Core.Culling.ClusterMatch> matches) { SavedSetMatches.Add(matches.ToArray()); return Task.CompletedTask; }
         public Task ClearSetsAsync() { SetsCleared = true; return Task.CompletedTask; }
+        public Task RemoveImagesNotInPathsAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default) { PrunedPaths = paths.ToArray(); return Task.CompletedTask; }
         public Task SaveUserDecisionAsync(long imageId, string action) => Task.CompletedTask;
         public Task<string?> LoadUserDecisionAsync(long imageId) => Task.FromResult<string?>(null);
     }

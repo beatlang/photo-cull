@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using PCull.Core.Culling;
 
@@ -21,6 +22,7 @@ namespace PCull.Core.Abstractions
             return Task.FromResult<ImageRecord?>(null);
         }
         Task<IEnumerable<ImageRecord>> ListImagesAsync();
+        Task RemoveImagesNotInPathsAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         Task SaveEmbeddingAsync(long imageId, float[] embedding);
         Task<float[]?> LoadEmbeddingAsync(long imageId);

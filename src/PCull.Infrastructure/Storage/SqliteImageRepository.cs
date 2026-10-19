@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 using PCull.Core;
@@ -33,6 +34,9 @@ namespace PCull.Infrastructure.Storage
         {
             var conn = new SqliteConnection(_connectionString);
             conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "PRAGMA foreign_keys = ON";
+            cmd.ExecuteNonQuery();
             return conn;
         }
 
@@ -289,6 +293,44 @@ DELETE FROM QualityScores WHERE ImageId=@id;";
                 ));
             }
             return list;
+        }
+
+        public async Task RemoveImagesNotInPathsAsync(IEnumerable<string> paths, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(paths);
+
+            using var conn = GetConnection();
+            using var tx = conn.BeginTransaction();
+            using (var createPaths = conn.CreateCommand())
+            {
+                createPaths.Transaction = tx;
+                createPaths.CommandText = "CREATE TEMP TABLE ScanPaths (Path TEXT PRIMARY KEY)";
+                await createPaths.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            using (var insertPath = conn.CreateCommand())
+            {
+                insertPath.Transaction = tx;
+                insertPath.CommandText = "INSERT OR IGNORE INTO ScanPaths (Path) VALUES (@path)";
+                var pathParameter = insertPath.Parameters.Add("@path", SqliteType.Text);
+                foreach (var path in paths)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    pathParameter.Value = path ?? throw new ArgumentException("Scan paths cannot contain null values.", nameof(paths));
+                    await insertPath.ExecuteNonQueryAsync(cancellationToken);
+                }
+            }
+
+            using (var deleteImages = conn.CreateCommand())
+            {
+                deleteImages.Transaction = tx;
+                deleteImages.CommandText = @"DELETE FROM Images
+WHERE NOT EXISTS (SELECT 1 FROM ScanPaths WHERE ScanPaths.Path = Images.Path)";
+                await deleteImages.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            tx.Commit();
         }
 
         public async Task SaveEmbeddingAsync(long imageId, float[] embedding)

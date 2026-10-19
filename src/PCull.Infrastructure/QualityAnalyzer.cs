@@ -95,33 +95,12 @@ namespace PCull.Infrastructure.Quality
 
         private int[] CalcHistogram(Mat mat, int channel)
         {
+            using var hist = new Mat();
+            Cv2.CalcHist(new[] { mat }, new[] { Math.Max(channel, 0) }, null, hist, 1, new[] { 256 }, new[] { new Rangef(0, 256) });
             var res = new int[256];
-            if (channel >= 0)
-            {
-                // color image - iterate pixels
-                for (int y = 0; y < mat.Rows; y++)
-                {
-                    for (int x = 0; x < mat.Cols; x++)
-                    {
-                        var v = mat.At<Vec3b>(y, x)[channel];
-                        res[v]++;
-                    }
-                }
-                return res;
-            }
-            else
-            {
-                // single-channel image
-                for (int y = 0; y < mat.Rows; y++)
-                {
-                    for (int x = 0; x < mat.Cols; x++)
-                    {
-                        var v = mat.At<byte>(y, x);
-                        res[v]++;
-                    }
-                }
-                return res;
-            }
+            for (int i = 0; i < 256; i++)
+                res[i] = (int)Math.Round(hist.At<float>(i));
+            return res;
         }
     }
 }

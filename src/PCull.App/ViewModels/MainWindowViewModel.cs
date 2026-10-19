@@ -94,6 +94,8 @@ namespace PCull.App.ViewModels
             try
             {
                 IsScanning = true;
+                ResetResults();
+                await _repo.ClearSetsAsync();
                 Progress = 0;
                 IsProgressIndeterminate = true;
                 StatusText = "Searching photos...";
@@ -131,6 +133,18 @@ namespace PCull.App.ViewModels
                 StatusText = $"Analysis failed: {ex.Message}";
             }
             finally { IsScanning = false; _cts = null; }
+        }
+
+        private void ResetResults()
+        {
+            foreach (var set in Sets)
+                Unsubscribe(set);
+            Sets.Clear();
+            SelectedSet = null;
+            SelectedImage = null;
+            SelectedImageMatchReasons.Clear();
+            HiddenSetCount = 0;
+            UpdateSummary();
         }
 
         [RelayCommand]

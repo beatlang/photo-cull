@@ -10,6 +10,13 @@
       "cwd": "${workspaceFolder}/src/PCull.App",
       "console": "internalConsole",
       "stopAtEntry": false
+    },
+    {
+      "name": "pCull.App (Release, no debugger)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "dotnet run --project src/PCull.App/PCull.App.csproj --configuration Release -p:Platform=x64",
+      "cwd": "${workspaceFolder}"
     }
   ]
 }

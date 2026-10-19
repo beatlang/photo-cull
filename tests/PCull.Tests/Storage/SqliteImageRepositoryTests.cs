@@ -122,5 +122,37 @@ namespace PCull.Tests.Storage
                 try { File.Delete(dbPath); } catch { }
             }
         }
+
+        [Fact]
+        public async Task RemoveImagesNotInPaths_RemovesOldImagesAndTheirDependentData()
+        {
+            var dbPath = Path.Combine(Path.GetTempPath(), $"pcull-test-{Guid.NewGuid()}.db");
+            try
+            {
+                using var repo = new SqliteImageRepository($"Data Source={dbPath}");
+                var timestamp = DateTime.UtcNow;
+                var keptId = await repo.UpsertImageAsync("/photos/current.jpg", 100, 10, 10, "jpg", timestamp, timestamp);
+                var oldId = await repo.UpsertImageAsync("/photos/old.jpg", 200, 10, 10, "jpg", timestamp, timestamp);
+                await repo.SaveHashesAsync(keptId, 7, 8, 9);
+                await repo.SaveUserDecisionAsync(keptId, "Keep");
+                await repo.SaveHashesAsync(oldId, 1, 2, 3);
+                await repo.SaveUserDecisionAsync(oldId, "Delete");
+
+                await repo.RemoveImagesNotInPathsAsync(new[] { "/photos/current.jpg" });
+
+                Assert.NotNull(await repo.GetImageByIdAsync(keptId));
+                Assert.Null(await repo.GetImageByIdAsync(oldId));
+                Assert.Equal(8, (await repo.LoadHashesAsync(keptId))!.DHash);
+                Assert.Equal("Keep", await repo.LoadUserDecisionAsync(keptId));
+                Assert.Null(await repo.LoadHashesAsync(oldId));
+                Assert.Null(await repo.LoadUserDecisionAsync(oldId));
+                Assert.Equal(new[] { "/photos/current.jpg" }, (await repo.ListImagesAsync()).Select(image => image.Path));
+            }
+            finally
+            {
+                SqliteConnection.ClearAllPools();
+                if (File.Exists(dbPath)) File.Delete(dbPath);
+            }
+        }
     }
 }

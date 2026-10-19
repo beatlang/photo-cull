@@ -20,7 +20,10 @@ namespace PCull.Infrastructure.Metadata
             if (stream.CanSeek) stream.Position = 0;
             try
             {
-                return new MagickImage(stream);
+                var settings = new MagickReadSettings();
+                // JPEG shrink-on-load: decode at reduced size, plenty for 32x32 hashes.
+                settings.SetDefine(MagickFormat.Jpeg, "size", "256x256");
+                return new MagickImage(stream, settings);
             }
             catch (MagickException)
             {

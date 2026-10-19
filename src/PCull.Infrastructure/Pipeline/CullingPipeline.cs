@@ -59,6 +59,71 @@ namespace PCull.Infrastructure.Pipeline
             _ranker = new Ranker();
         }
 
+        // Quality analysis holds several full-resolution matrices per image, so concurrency is capped to bound memory.
+        private static int AnalysisParallelism => Math.Clamp(Environment.ProcessorCount / 2, 2, 4);
+
+        private sealed record ImageAnalysis(string Path, ImageFeatures Features, QualityMetrics? Quality);
+
+        private async Task<ImageAnalysis> AnalyzeImageAsync(ImageRecord img, long imageId, string cacheDirectory, Action<PipelineFailure> reportFailure, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await _thumbnail.GenerateThumbnailAsync(img.Path, cacheDirectory, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                reportFailure(new PipelineFailure(img.Path, ex.Message));
+            }
+
+            // Capture time - best-effort. Similarity features are loaded lazily after timestamp checks.
+            ExifInfo? exif = null;
+            try
+            {
+                using var fs = File.OpenRead(img.Path);
+                exif = _exifReader.ReadExif(fs);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                reportFailure(new PipelineFailure(img.Path, ex.Message));
+            }
+
+            // quality (reuse persisted scores for unchanged images)
+            QualityMetrics? quality = null;
+            try
+            {
+                var cached = await _imageRepo.LoadQualityScoresAsync(imageId);
+                if (cached != null)
+                {
+                    quality = new QualityMetrics
+                    {
+                        Sharpness = cached.Sharpness,
+                        IsBlurWarning = cached.Sharpness < 15.0f,
+                        ExposureScore = cached.Exposure,
+                        MeanBrightness = cached.Brightness,
+                        NoiseEstimate = cached.Noise,
+                        Quality = cached.Quality
+                    };
+                }
+                else
+                {
+                    using var fsq = File.OpenRead(img.Path);
+                    quality = await _qualityAnalyzer.AnalyzeAsync(fsq);
+                    await _imageRepo.SaveQualityScoresAsync(imageId, new QualityScores(quality.Sharpness, quality.ExposureScore, quality.MeanBrightness, quality.NoiseEstimate, quality.Quality));
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                reportFailure(new PipelineFailure(img.Path, ex.Message));
+            }
+
+            var stored = await _imageRepo.LoadHashesAsync(imageId);
+            var feat = new ImageFeatures(imageId, exif?.CaptureTime,
+                stored?.PHash is long ph ? unchecked((ulong)ph) : null,
+                stored?.DHash is long dh ? unchecked((ulong)dh) : null,
+                null, null);
+            return new ImageAnalysis(img.Path, feat, quality);
+        }
+
         public async Task<PipelineResult> RunAsync(string folder, string cacheDirectory, IProgress<PipelineProgress>? progress = null, CancellationToken cancellationToken = default, ClusterOptions? clusterOptions = null)
         {
             var images = new List<ImageRecord>();
@@ -79,77 +144,17 @@ namespace PCull.Infrastructure.Pipeline
 
             p.Phase = PipelinePhase.Analyzing;
             Report();
+            var progressLock = new object();
+
+            // Register images sequentially so image ids and feature order stay deterministic.
+            var pending = new List<(ImageRecord Image, long Id)>();
             foreach (var img in images)
             {
                 try
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-
                     long imageId = await _imageRepo.UpsertImageAsync(img.Path, img.SizeBytes, img.Width, img.Height, img.Format, img.CreatedUtc, img.ModifiedUtc);
-
-                    // thumbnail
-                    string? thumb = null;
-                    try
-                    {
-                        thumb = await _thumbnail.GenerateThumbnailAsync(img.Path, cacheDirectory, cancellationToken);
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        failures.Add(new PipelineFailure(img.Path, ex.Message));
-                    }
-
-                    // Capture time - best-effort. Similarity features are loaded lazily after timestamp checks.
-                    ExifInfo? exif = null;
-                    try
-                    {
-                        using var fs = File.OpenRead(img.Path);
-                        exif = _exifReader.ReadExif(fs);
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        failures.Add(new PipelineFailure(img.Path, ex.Message));
-                    }
-
-                    // quality (reuse persisted scores for unchanged images)
-                    try
-                    {
-                        var cached = await _imageRepo.LoadQualityScoresAsync(imageId);
-                        if (cached != null)
-                        {
-                            qualities[imageId] = new QualityMetrics
-                            {
-                                Sharpness = cached.Sharpness,
-                                IsBlurWarning = cached.Sharpness < 15.0f,
-                                ExposureScore = cached.Exposure,
-                                MeanBrightness = cached.Brightness,
-                                NoiseEstimate = cached.Noise,
-                                Quality = cached.Quality
-                            };
-                        }
-                        else
-                        {
-                            using var fsq = File.OpenRead(img.Path);
-                            var qm = await _qualityAnalyzer.AnalyzeAsync(fsq);
-                            qualities[imageId] = qm;
-                            await _imageRepo.SaveQualityScoresAsync(imageId, new QualityScores(qm.Sharpness, qm.ExposureScore, qm.MeanBrightness, qm.NoiseEstimate, qm.Quality));
-                        }
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        failures.Add(new PipelineFailure(img.Path, ex.Message));
-                    }
-
-                    var stored = await _imageRepo.LoadHashesAsync(imageId);
-                    var feat = new ImageFeatures(imageId, exif?.CaptureTime,
-                        stored?.PHash is long ph ? unchecked((ulong)ph) : null,
-                        stored?.DHash is long dh ? unchecked((ulong)dh) : null,
-                        null, null);
-                    features.Add(feat);
-                    featuresById.Add(imageId, feat);
-                    imagePaths.Add(imageId, img.Path);
-
-                    p.Processed++;
-                    Report();
+                    pending.Add((img, imageId));
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -157,6 +162,58 @@ namespace PCull.Infrastructure.Pipeline
                     failures.Add(new PipelineFailure(img.Path, ex.Message));
                     Report();
                 }
+            }
+
+            // The expensive per-image work (decoding, thumbnails, quality) runs in parallel with bounded concurrency.
+            var analyses = new ImageAnalysis?[pending.Count];
+            var parallelOptions = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = AnalysisParallelism,
+                CancellationToken = cancellationToken
+            };
+            try
+            {
+                await Parallel.ForEachAsync(Enumerable.Range(0, pending.Count), parallelOptions, async (index, token) =>
+                {
+                    var (img, imageId) = pending[index];
+                    try
+                    {
+                        analyses[index] = await AnalyzeImageAsync(img, imageId, cacheDirectory, failure =>
+                        {
+                            lock (progressLock) failures.Add(failure);
+                        }, token);
+                        lock (progressLock)
+                        {
+                            p.Processed++;
+                            Report();
+                        }
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        lock (progressLock)
+                        {
+                            p.Errors++;
+                            failures.Add(new PipelineFailure(img.Path, ex.Message));
+                            Report();
+                        }
+                    }
+                });
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Parallel.ForEachAsync may throw a derived type; normalize it.
+                throw new OperationCanceledException(cancellationToken);
+            }
+
+            foreach (var analysis in analyses)
+            {
+                if (analysis == null) continue;
+                var imageId = analysis.Features.ImageId;
+                features.Add(analysis.Features);
+                featuresById.Add(imageId, analysis.Features);
+                imagePaths.Add(imageId, analysis.Path);
+                if (analysis.Quality != null)
+                    qualities[imageId] = analysis.Quality;
             }
 
             // cluster & rank
@@ -211,6 +268,9 @@ namespace PCull.Infrastructure.Pipeline
                 await _imageRepo.SaveSetMembersAsync(setId, membersByCluster[clusterIndex]);
                 await _imageRepo.SaveSetMatchesAsync(setId, matchesByCluster[clusterIndex]);
             }
+
+            if (images.Count > 0 || Directory.Exists(folder))
+                await _imageRepo.RemoveImagesNotInPathsAsync(images.Select(image => image.Path), cancellationToken);
 
             Report();
             return new PipelineResult { Scanned = p.Scanned, Processed = p.Processed, Failures = failures.AsReadOnly() };

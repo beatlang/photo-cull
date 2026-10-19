@@ -93,7 +93,10 @@ namespace PCull.Ai.Embeddings
                 imageStream.Position = 0;
             try
             {
-                using var img = new MagickImage(imageStream);
+                var readSettings = new MagickReadSettings();
+                // JPEG shrink-on-load: the model input is 224x224, so a reduced decode suffices.
+                readSettings.SetDefine(MagickFormat.Jpeg, "size", "448x448");
+                using var img = new MagickImage(imageStream, readSettings);
                 return PreprocessImage(img, opts);
             }
             catch (MagickException)
