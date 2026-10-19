@@ -10,7 +10,7 @@ Additional image decoding:
 
 - Magick.NET / ImageMagick (Magick.NET-Q8-AnyCPU)
   - License: Apache-2.0
-  - Used for decoding HEIC and RAW formats via ImageMagick delegating libraries.
+  - Used for all image decoding (JPEG, PNG, WEBP, TIFF, HEIC/HEIF, RAW), resizing, perceptual-hash preprocessing, thumbnail generation and CLIP/SigLIP preprocessing; HEIC and RAW rely on ImageMagick delegate libraries.
 
 - libheif
   - License: LGPL (dynamically linked/native delegate)

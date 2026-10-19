@@ -1,10 +1,7 @@
 using System;
 using System.IO;
 using System.Numerics;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Formats.Jpeg;
+using ImageMagick;
 using PCull.Core.Abstractions;
 
 namespace PCull.Infrastructure.Metadata
@@ -13,47 +10,61 @@ namespace PCull.Infrastructure.Metadata
     {
         private readonly PCull.Core.Abstractions.IImageDecoder? _decoder;
 
-        public HashService(PCull.Core.Abstractions.IImageDecoder? decoder = null)
+        public HashService(IImageDecoder? decoder = null)
         {
             _decoder = decoder;
         }
 
-        private Image<Rgba32> LoadImageWithFallback(Stream stream)
+        private MagickImage LoadImageWithFallback(Stream stream)
         {
             if (stream.CanSeek) stream.Position = 0;
             try
             {
-                return Image.Load<Rgba32>(stream);
+                return new MagickImage(stream);
             }
-            catch (SixLabors.ImageSharp.UnknownImageFormatException)
+            catch (MagickException)
             {
                 if (_decoder != null)
                 {
+                    if (stream.CanSeek) stream.Position = 0;
                     var decoded = _decoder.DecodeToJpegAsync(stream).GetAwaiter().GetResult();
                     if (decoded != null)
                     {
-                        decoded.Position = 0;
-                        return Image.Load<Rgba32>(decoded);
+                        using (decoded)
+                        {
+                            decoded.Position = 0;
+                            return new MagickImage(decoded);
+                        }
                     }
                 }
                 throw;
             }
         }
 
+        private static byte[] ResizeToRgb(MagickImage image, uint width, uint height, FilterType filter)
+        {
+            image.Resize(width, height, filter);
+            image.ColorSpace = ColorSpace.sRGB;
+            return image.GetPixels().ToByteArray("RGB");
+        }
+
+        private static double Luminance(byte[] rgb, int pixelIndex)
+        {
+            int offset = pixelIndex * 3;
+            return rgb[offset] * 0.299 + rgb[offset + 1] * 0.587 + rgb[offset + 2] * 0.114;
+        }
+
         public ulong ComputeAHash(Stream stream)
         {
             using var img = LoadImageWithFallback(stream);
-            img.Mutate(x => x.Resize(new ResizeOptions { Size = new Size(8, 8), Mode = ResizeMode.Stretch, Sampler = KnownResamplers.Bicubic }));
+            var rgb = ResizeToRgb(img, 8, 8, FilterType.Cubic);
             byte[] gray = new byte[64];
-            int idx = 0;
-            for (int y = 0; y < 8; y++)
-            for (int x = 0; x < 8; x++)
-            {
-                var p = img[x, y];
-                gray[idx++] = (byte)Math.Round(p.R * 0.299 + p.G * 0.587 + p.B * 0.114);
-            }
             int sum = 0;
-            for (int i = 0; i < 64; i++) sum += gray[i];
+            for (int i = 0; i < gray.Length; i++)
+            {
+                gray[i] = (byte)Math.Round(Luminance(rgb, i));
+                sum += gray[i];
+            }
             double avg = sum / 64.0;
             ulong hash = 0;
             for (int i = 0; i < 64; i++)
@@ -67,19 +78,14 @@ namespace PCull.Infrastructure.Metadata
         public ulong ComputeDHash(Stream stream)
         {
             using var img = LoadImageWithFallback(stream);
-            // dHash: resize to 9x8, compare left-right using luminance
-            img.Mutate(x => x.Resize(new ResizeOptions { Size = new Size(9, 8), Mode = ResizeMode.Stretch, Sampler = KnownResamplers.Lanczos3 }));
+            var rgb = ResizeToRgb(img, 9, 8, FilterType.Triangle);
             ulong hash = 0;
             int bit = 0;
             for (int y = 0; y < 8; y++)
             {
                 for (int x = 0; x < 8; x++)
                 {
-                    var a = img[x, y];
-                    var b = img[x + 1, y];
-                    double ga = a.R * 0.299 + a.G * 0.587 + a.B * 0.114;
-                    double gb = b.R * 0.299 + b.G * 0.587 + b.B * 0.114;
-                    if (ga > gb)
+                    if (Luminance(rgb, y * 9 + x) > Luminance(rgb, y * 9 + x + 1))
                         hash |= 1UL << bit;
                     bit++;
                 }
@@ -90,20 +96,13 @@ namespace PCull.Infrastructure.Metadata
         public ulong ComputePHash(Stream stream)
         {
             using var img = LoadImageWithFallback(stream);
-            // resize to 32x32 grayscale with good resampler
-            img.Mutate(x => x.Resize(new ResizeOptions { Size = new Size(32, 32), Mode = ResizeMode.Stretch, Sampler = KnownResamplers.Bicubic }));
+            var rgb = ResizeToRgb(img, 32, 32, FilterType.Cubic);
             double[,] vals = new double[32, 32];
             for (int y = 0; y < 32; y++)
                 for (int x = 0; x < 32; x++)
-                {
-                    var p = img[x, y];
-                    vals[x, y] = p.R * 0.299 + p.G * 0.587 + p.B * 0.114;
-                }
+                    vals[x, y] = Luminance(rgb, y * 32 + x);
 
-            // compute 2D DCT (type-II)
             var dct = DCT2D(vals, 32);
-
-            // take top-left 8x8 coefficients (u,v = 0..7)
             double[] coefs = new double[64];
             int idx = 0;
             for (int v = 0; v < 8; v++)
@@ -134,7 +133,6 @@ namespace PCull.Infrastructure.Metadata
             return HammingDistance(a, b) <= maxDistance;
         }
 
-        // 2D DCT (type-II) implementation optimized a bit using precomputed cosines
         private static double[,] DCT2D(double[,] data, int n)
         {
             double[,] result = new double[n, n];
@@ -158,9 +156,7 @@ namespace PCull.Infrastructure.Metadata
                     for (int x = 0; x < n; x++)
                     {
                         for (int y = 0; y < n; y++)
-                        {
                             sum += data[x, y] * cosX[u, x] * cosY[v, y];
-                        }
                     }
                     double cu = u == 0 ? 1.0 / Math.Sqrt(2.0) : 1.0;
                     double cv = v == 0 ? 1.0 / Math.Sqrt(2.0) : 1.0;

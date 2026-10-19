@@ -36,7 +36,10 @@ namespace PCull.App.ViewModels
         public string FileName => System.IO.Path.GetFileName(Path);
         public string InfoLine => $"{Width}x{Height} · {SizeBytes / (1024d * 1024d):F1} MB";
         public string Badge => EffectiveDecision;
-        public string EffectiveDecision => UserDecision ?? Recommendation.ToString();
+        public string EffectiveDecision =>
+            string.Equals(UserDecision, "Delete", StringComparison.OrdinalIgnoreCase)
+                ? "Delete"
+                : "Keep";
 
         private QualityScores? _scores;
         public QualityScores? Scores { get => _scores; set => SetProperty(ref _scores, value); }

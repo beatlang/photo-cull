@@ -1,7 +1,5 @@
 using PCull.Core;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Processing;
+using ImageMagick;
 using System;
 using System.IO;
 using System.Security.Cryptography;
@@ -47,42 +45,56 @@ namespace PCull.Infrastructure
 
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 using var stream = File.OpenRead(imagePath);
-                using var image = await Image.LoadAsync(stream, cancellationToken);
+                using var memory = new MemoryStream();
+                await stream.CopyToAsync(memory, cancellationToken).ConfigureAwait(false);
+                using var image = new MagickImage(memory.ToArray());
+                image.AutoOrient();
 
                 var size = Math.Max(image.Width, image.Height);
                 if (size > _maxSize)
                 {
                     var ratio = (double)_maxSize / size;
-                    var width = (int)Math.Round(image.Width * ratio);
-                    var height = (int)Math.Round(image.Height * ratio);
-                    image.Mutate(x => x.Resize(width, height));
+                    var width = (uint)Math.Max(1, Math.Round(image.Width * ratio));
+                    var height = (uint)Math.Max(1, Math.Round(image.Height * ratio));
+                    image.Resize(width, height, FilterType.Cubic);
                 }
 
-                var encoder = new JpegEncoder { Quality = 85 };
-                await image.SaveAsJpegAsync(cached, encoder, cancellationToken);
+                image.Format = MagickFormat.Jpeg;
+                image.Quality = 85;
+                cancellationToken.ThrowIfCancellationRequested();
+                var jpeg = image.ToByteArray(MagickFormat.Jpeg);
+                await File.WriteAllBytesAsync(cached, jpeg, cancellationToken).ConfigureAwait(false);
                 return cached;
             }
-            catch (SixLabors.ImageSharp.UnknownImageFormatException)
+            catch (MagickException)
             {
-                // Unsupported format (HEIC/RAW) - try external decoder if available
+                // Unsupported formats (including HEIC/RAW) may be handled by the configured decoder.
                 if (_decoder != null)
                 {
                     try
                     {
                         using var fs = File.OpenRead(imagePath);
-                        var decoded = await _decoder.DecodeToJpegAsync(fs, _maxSize, Path.GetExtension(imagePath));
+                        var decoded = await _decoder.DecodeToJpegAsync(fs, _maxSize, Path.GetExtension(imagePath)).ConfigureAwait(false);
                         if (decoded != null)
                         {
-                            decoded.Position = 0;
-                            using var outFs = File.Create(cached);
-                            await decoded.CopyToAsync(outFs, cancellationToken);
+                            using (decoded)
+                            {
+                                decoded.Position = 0;
+                                using var outFs = File.Create(cached);
+                                await decoded.CopyToAsync(outFs, cancellationToken).ConfigureAwait(false);
+                            }
                             return cached;
                         }
                     }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
                     catch
                     {
-                        // tolerant
+                        // Tolerate unsupported or corrupt images.
                     }
                 }
                 return null;
@@ -91,9 +103,12 @@ namespace PCull.Infrastructure
             {
                 return null;
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch
             {
-                // On any other error, bubble up? For service we return null to be tolerant.
                 return null;
             }
         }

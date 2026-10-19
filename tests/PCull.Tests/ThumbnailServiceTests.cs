@@ -2,8 +2,7 @@ using PCull.Infrastructure;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using ImageMagick;
 using Xunit;
 
 namespace PCull.Tests
@@ -18,9 +17,9 @@ namespace PCull.Tests
             try
             {
                 var imagePath = Path.Combine(root, "orig.jpg");
-                using (var img = new Image<Rgba32>(1200, 800))
+                using (var img = TestImages.Solid(1200, 800, 90, 120, 200))
                 {
-                    await img.SaveAsJpegAsync(imagePath);
+                    TestImages.Save(img, imagePath, MagickFormat.Jpeg);
                 }
 
                 var cacheDir = Path.Combine(root, "cache");

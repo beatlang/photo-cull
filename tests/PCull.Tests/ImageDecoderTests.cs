@@ -2,7 +2,6 @@ using System.IO;
 using System.Threading.Tasks;
 using ImageMagick;
 using PCull.Infrastructure.Imaging;
-using SixLabors.ImageSharp;
 using Xunit;
 
 namespace PCull.Tests
@@ -22,7 +21,7 @@ namespace PCull.Tests
             var decoded = await decoder.DecodeToJpegAsync(ms, 2048, ".tiff", forceMagick: true);
             Assert.NotNull(decoded);
             decoded.Position = 0;
-            using var loaded = SixLabors.ImageSharp.Image.Load(decoded);
+            using var loaded = new MagickImage(decoded);
             Assert.True(loaded.Width > 0 && loaded.Height > 0);
         }
     }

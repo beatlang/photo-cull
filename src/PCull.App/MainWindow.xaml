@@ -46,38 +46,52 @@
                     <TextBlock Text="PCull" FontSize="20" FontWeight="SemiBold"
                                VerticalAlignment="Center"/>
                 </StackPanel>
-                <Button x:Name="PickFolderBtn" Grid.Column="1" Content="Pick folder &amp; scan"
-                        ToolTipService.ToolTip="Choose a folder and scan for similar photos"/>
-                <Button x:Name="CancelBtn" Grid.Column="2" Content="Cancel" Margin="8,0,0,0"
-                        ToolTipService.ToolTip="Cancel the current scan"/>
+                <StackPanel Grid.Column="1" Spacing="2" Margin="0,0,12,0">
+                    <TextBlock Text="1. Choose folder" FontWeight="SemiBold"/>
+                    <Button x:Name="PickFolderBtn" Content="Choose folder" Click="PickFolder_Click"
+                            AutomationProperties.Name="Choose folder"
+                            ToolTipService.ToolTip="Choose the folder to analyze"/>
+                    <TextBlock Text="{Binding FolderPath}" TextTrimming="CharacterEllipsis"
+                               MaxWidth="220" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="2" Margin="0,0,12,0">
+                    <TextBlock Text="2. Start analysis" FontWeight="SemiBold"/>
+                    <Button x:Name="StartAnalysisBtn" Content="Start analysis" Click="StartAnalysis_Click"
+                            AutomationProperties.Name="Start analysis"/>
+                </StackPanel>
+                <Button x:Name="CancelBtn" Grid.Column="3" Content="Cancel" Margin="8,0,0,0"
+                        AutomationProperties.Name="Cancel analysis"
+                        ToolTipService.ToolTip="Cancel the current analysis"/>
                 <ProgressBar x:Name="ProgressBar" Grid.Column="4" Height="6" VerticalAlignment="Center"
                              Margin="18,0,8,0" Minimum="0" Maximum="100"
-                             Value="{Binding Progress}"/>
+                             Value="{Binding Progress}" IsIndeterminate="{Binding IsProgressIndeterminate}"
+                             AutomationProperties.Name="Analysis progress"/>
                 <TextBlock Grid.Column="5" Text="{Binding StatusText}" VerticalAlignment="Center"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,16,0"/>
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,16,0"
+                           ToolTipService.ToolTip="{Binding AnalysisFailures}"/>
                 <ToggleButton x:Name="CompareToggle" Grid.Column="6" Content="Compare"
                               ToolTipService.ToolTip="Compare best shot and selected image (C)"/>
                 <StackPanel Grid.Column="7" Orientation="Horizontal" HorizontalAlignment="Right"
                             VerticalAlignment="Center" Spacing="16">
+                    <TextBlock Text="3. Review sets" VerticalAlignment="Center"
+                               FontWeight="SemiBold"/>
                     <TextBlock Text="{Binding Summary}" VerticalAlignment="Center"
                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     <Button x:Name="SettingsBtn" ToolTipService.ToolTip="Configure photo grouping">
                         <SymbolIcon Symbol="Setting"/>
                         <AutomationProperties.Name>Grouping settings</AutomationProperties.Name>
                     </Button>
-                    <Button x:Name="DeleteBtn" Content="Delete marked ("
+                    <TextBlock Text="4." VerticalAlignment="Center" FontWeight="SemiBold"/>
+                    <Button x:Name="DeleteBtn"
+                            AutomationProperties.Name="Delete marked photos"
                             Background="{ThemeResource AccentFillColorDefaultBrush}"
                             Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
                             ToolTipService.ToolTip="Review and delete all marked photos">
-                        <Button.ContentTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Delete marked ("/>
-                                    <TextBlock Text="{Binding MarkedForDeleteCount}"/>
-                                    <TextBlock Text=")"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </Button.ContentTemplate>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Delete marked ("/>
+                            <TextBlock Text="{Binding MarkedForDeleteCount}"/>
+                            <TextBlock Text=")"/>
+                        </StackPanel>
                     </Button>
                 </StackPanel>
             </Grid>
@@ -163,7 +177,7 @@
                         <TextBlock Text="pCull groups similar images so you can quickly keep the best ones."
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                    HorizontalAlignment="Center"/>
-                        <Button Content="Pick folder &amp; scan" Click="PickFolder_Click"
+                            <Button Content="Choose folder" Click="PickFolder_Click"
                                 HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Grid>
@@ -197,12 +211,9 @@
                 <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
                     <Button x:Name="KeepBtn" Content="Keep" Style="{StaticResource ActionButtonStyle}"
                             ToolTipService.ToolTip="Keep this photo (K)"/>
-                    <Button x:Name="ReviewBtn" Content="Review" Style="{StaticResource ActionButtonStyle}"
-                            ToolTipService.ToolTip="Mark this photo for review (R)"/>
                     <Button x:Name="MarkDeleteBtn" Content="Delete" Style="{StaticResource ActionButtonStyle}"
-                            ToolTipService.ToolTip="Mark this photo for deletion (D)"/>
-                    <Button x:Name="FavBtn" Content="Favorite" Style="{StaticResource ActionButtonStyle}"
-                            ToolTipService.ToolTip="Mark this photo as favorite (F)"/>
+                            AutomationProperties.Name="Mark photo for deletion"
+                            ToolTipService.ToolTip="Mark this photo for deletion (D or Delete)"/>
                     <Button x:Name="AcceptBtn" Content="Accept recommendations for set"
                             ToolTipService.ToolTip="Apply recommendations to every photo in this set"/>
                 </StackPanel>

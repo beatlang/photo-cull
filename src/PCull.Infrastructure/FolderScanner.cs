@@ -1,11 +1,8 @@
 using PCull.Core;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats;
+using ImageMagick;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -43,22 +40,25 @@ namespace PCull.Infrastructure
 
                 try
                 {
-                    // Try to identify image metadata without fully decoding large images.
                     using var stream = File.OpenRead(file);
-                    var info = await Image.IdentifyAsync(stream, cancellationToken);
-                    if (info != null)
-                    {
-                        width = info.Width;
-                        height = info.Height;
-                    }
+                    var info = new MagickImageInfo(stream);
+                    width = checked((int)info.Width);
+                    height = checked((int)info.Height);
                 }
-                catch
+                catch (MagickException)
                 {
-                    // ImageSharp might not support HEIC/RAW; skip metadata in that case (TODO: add external decoders)
+                    // Keep the file in the scan while leaving unavailable metadata empty.
+                }
+                catch (IOException)
+                {
+                    // Keep the file in the scan while leaving unavailable metadata empty.
                 }
 
+                cancellationToken.ThrowIfCancellationRequested();
                 yield return new ImageRecord(0, file, fi.Length, width, height, formatName, fi.CreationTimeUtc, fi.LastWriteTimeUtc);
             }
+
+            await Task.CompletedTask;
         }
     }
 }

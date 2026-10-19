@@ -41,12 +41,9 @@ namespace PCull.App
                 throw;
             }
 
-            PickFolderBtn.Click += async (_, __) => await PickFolder();
             CancelBtn.Click += (_, __) => VM?.CancelScan();
             KeepBtn.Click += async (_, __) => await MarkDecision("Keep");
-            ReviewBtn.Click += async (_, __) => await MarkDecision("Review");
             MarkDeleteBtn.Click += async (_, __) => await MarkDecision("Delete");
-            FavBtn.Click += async (_, __) => await MarkDecision("Favorite");
             AcceptBtn.Click += async (_, __) => { if (VM != null) await VM.AcceptRecommendationsForSet(); };
             CompareToggle.Checked += (_, __) => SetCompareVisibility(true);
             CompareToggle.Unchecked += (_, __) => SetCompareVisibility(false);
@@ -59,6 +56,7 @@ namespace PCull.App
             CompareRightImage.ImageOpened += (_, _) => FitImageToViewport(CompareRight, CompareRightImage);
 
             VM?.UpdateClusterOptions(_cullingSettings.ToClusterOptions());
+            UpdateScanControls();
             UpdateSettingsButton();
         }
 
@@ -93,26 +91,44 @@ namespace PCull.App
             if (e.PropertyName == nameof(MainWindowViewModel.Sets) ||
                 e.PropertyName == nameof(MainWindowViewModel.SelectedSet))
                 UpdateEmptyState();
+            if (e.PropertyName == nameof(MainWindowViewModel.IsScanning) ||
+                e.PropertyName == nameof(MainWindowViewModel.HasFolder) ||
+                e.PropertyName == nameof(MainWindowViewModel.MarkedForDeleteCount))
+                UpdateScanControls();
         }
 
         private async Task PickFolder()
         {
             var path = await FolderPickerHelper.PickFolderAsync(this);
             if (!string.IsNullOrWhiteSpace(path))
-                await RunScan(path);
+            {
+                if (VM != null) VM.FolderPath = path;
+                UpdateScanControls();
+            }
         }
 
         private async Task RunScan(string? folder = null)
         {
-            folder ??= Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
             if (VM == null) return;
+            folder ??= VM.FolderPath;
+            if (string.IsNullOrWhiteSpace(folder) || VM.IsScanning) return;
             await VM.StartScanCommand.ExecuteAsync(folder);
-            await VM.LoadSetsAsync();
             UpdateSelection();
             UpdateEmptyState();
         }
 
         private async void PickFolder_Click(object sender, RoutedEventArgs e) => await PickFolder();
+        private async void StartAnalysis_Click(object sender, RoutedEventArgs e) => await RunScan();
+
+        private void UpdateScanControls()
+        {
+            if (VM == null) return;
+            PickFolderBtn.IsEnabled = !VM.IsScanning;
+            StartAnalysisBtn.IsEnabled = VM.HasFolder && !VM.IsScanning;
+            CancelBtn.Visibility = VM.IsScanning ? Visibility.Visible : Visibility.Collapsed;
+            CancelBtn.IsEnabled = VM.IsScanning;
+            DeleteBtn.IsEnabled = !VM.IsScanning && VM.MarkedForDeleteCount > 0;
+        }
 
         private async Task MarkDecision(string action)
         {
@@ -209,9 +225,8 @@ namespace PCull.App
                 case VirtualKey.Up: VM.PreviousSet(); break;
                 case VirtualKey.Down: VM.NextSet(); break;
                 case VirtualKey.K: _ = MarkDecision("Keep"); break;
-                case VirtualKey.R: _ = MarkDecision("Review"); break;
                 case VirtualKey.D: _ = MarkDecision("Delete"); break;
-                case VirtualKey.F: _ = MarkDecision("Favorite"); break;
+                case VirtualKey.Delete: _ = MarkDecision("Delete"); break;
                 case VirtualKey.C: CompareToggle.IsChecked = !CompareToggle.IsChecked; break;
                 default: return;
             }
@@ -242,7 +257,7 @@ namespace PCull.App
             {
                 XamlRoot = RootGrid.XamlRoot,
                 Title = "Confirm delete",
-                Content = $"You are about to delete {preview.Count} files ({preview.TotalBytesSaved} bytes). Use Recycle bin?",
+                Content = $"You are about to delete {preview.Count} files ({FormatBytes(preview.TotalBytesSaved)}). Use Recycle bin?",
                 PrimaryButtonText = "Recycle",
                 SecondaryButtonText = "Permanent",
                 CloseButtonText = "Cancel"
@@ -265,6 +280,14 @@ namespace PCull.App
             }
             UpdateSelection();
             UpdateEmptyState();
+        }
+
+        private static string FormatBytes(long bytes)
+        {
+            if (bytes < 1024) return $"{bytes} B";
+            if (bytes < 1024 * 1024) return $"{bytes / 1024d:F1} KB";
+            if (bytes < 1024L * 1024 * 1024) return $"{bytes / (1024d * 1024):F1} MB";
+            return $"{bytes / (1024d * 1024 * 1024):F1} GB";
         }
 
         private async Task ShowSettingsDialog()

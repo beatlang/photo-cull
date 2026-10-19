@@ -6,9 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using PCull.Core.Abstractions;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
+using ImageMagick;
 
 namespace PCull.Ai.Embeddings
 {
@@ -91,78 +89,69 @@ namespace PCull.Ai.Embeddings
 
         private Tensor<float> Preprocess(Stream imageStream, PreprocessingOptions opts)
         {
-            imageStream.Position = 0;
+            if (imageStream.CanSeek)
+                imageStream.Position = 0;
             try
             {
-                using var img = Image.Load<Rgb24>(imageStream);
+                using var img = new MagickImage(imageStream);
                 return PreprocessImage(img, opts);
             }
-            catch (SixLabors.ImageSharp.UnknownImageFormatException)
+            catch (MagickException)
             {
                 if (_decoder != null)
                 {
+                    if (imageStream.CanSeek)
+                        imageStream.Position = 0;
                     var decoded = _decoder.DecodeToJpegAsync(imageStream).GetAwaiter().GetResult();
                     if (decoded != null)
                     {
-                        decoded.Position = 0;
-                        using var img = Image.Load<Rgb24>(decoded);
-                        return PreprocessImage(img, opts);
+                        using (decoded)
+                        {
+                            decoded.Position = 0;
+                            using var img = new MagickImage(decoded);
+                            return PreprocessImage(img, opts);
+                        }
                     }
                 }
                 throw;
             }
         }
 
-        private static Tensor<float> PreprocessImage(Image<Rgb24> img, PreprocessingOptions opts)
+        private static Tensor<float> PreprocessImage(MagickImage img, PreprocessingOptions opts)
         {
             int target = opts.Size;
+            img.AutoOrient();
 
-            if (opts.StretchNoCrop)
+            uint resizedWidth = (uint)target;
+            uint resizedHeight = (uint)target;
+            if (!opts.StretchNoCrop)
             {
-                img.Mutate(x => x.Resize(new ResizeOptions
-                {
-                    Size = new Size(target, target),
-                    Sampler = (opts.Resampler == "Bicubic") ? KnownResamplers.Bicubic : KnownResamplers.Bicubic,
-                    Mode = ResizeMode.Stretch
-                }));
-            }
-            else
-            {
-                img.Mutate(x => x.Resize(new ResizeOptions
-                {
-                    Size = new Size(target, target),
-                    Sampler = (opts.Resampler == "Bicubic") ? KnownResamplers.Bicubic : KnownResamplers.Bicubic,
-                    Mode = ResizeMode.Crop,
-                    Position = AnchorPositionMode.Center
-                }));
+                double scale = Math.Max((double)target / img.Width, (double)target / img.Height);
+                resizedWidth = Math.Max((uint)target, (uint)Math.Ceiling(img.Width * scale));
+                resizedHeight = Math.Max((uint)target, (uint)Math.Ceiling(img.Height * scale));
             }
 
-            // create tensor [1,3,H,W]
+            img.Resize(resizedWidth, resizedHeight, FilterType.Cubic);
+            img.ColorSpace = ColorSpace.sRGB;
+            byte[] rgb = img.GetPixels().ToByteArray("RGB");
+            int cropX = (int)((resizedWidth - (uint)target) / 2);
+            int cropY = (int)((resizedHeight - (uint)target) / 2);
+
             var tensor = new DenseTensor<float>(new[] { 1, 3, target, target });
-
-            img.ProcessPixelRows(accessor =>
+            for (int y = 0; y < target; y++)
             {
-                for (int y = 0; y < target; y++)
+                int sourceRow = (y + cropY) * (int)resizedWidth;
+                for (int x = 0; x < target; x++)
                 {
-                    var row = accessor.GetRowSpan(y);
-                    for (int x = 0; x < target; x++)
-                    {
-                        var p = row[x];
-                        // rescale (p.R is 0..255)
-                        float r = p.R * opts.Rescale;
-                        float g = p.G * opts.Rescale;
-                        float b = p.B * opts.Rescale;
-                        // apply mean/std
-                        float rn = (r - opts.Mean[0]) / opts.Std[0];
-                        float gn = (g - opts.Mean[1]) / opts.Std[1];
-                        float bn = (b - opts.Mean[2]) / opts.Std[2];
-                        // NCHW
-                        tensor[0, 0, y, x] = rn;
-                        tensor[0, 1, y, x] = gn;
-                        tensor[0, 2, y, x] = bn;
-                    }
+                    int offset = (sourceRow + x + cropX) * 3;
+                    float r = rgb[offset] * opts.Rescale;
+                    float g = rgb[offset + 1] * opts.Rescale;
+                    float b = rgb[offset + 2] * opts.Rescale;
+                    tensor[0, 0, y, x] = (r - opts.Mean[0]) / opts.Std[0];
+                    tensor[0, 1, y, x] = (g - opts.Mean[1]) / opts.Std[1];
+                    tensor[0, 2, y, x] = (b - opts.Mean[2]) / opts.Std[2];
                 }
-            });
+            }
 
             return tensor;
         }

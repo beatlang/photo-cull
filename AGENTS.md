@@ -49,6 +49,7 @@ These guidelines apply to all changes in this repository.
 - Treat corrupt or unsupported individual photos as isolated failures where possible so scanning can continue; log and report failures clearly. Correctly abort on cancellation or overall operation failures, and do not report success when an operation failed.
 - Before changing database schemas, settings, or cache formats, check compatibility with existing installations and local user data. Apply required migrations explicitly and safely; never silently delete or overwrite user data.
 - Preserve keyboard accessibility, clear status and error messages, and confirmations for destructive actions in the UI. Give new controls accessible names and meaningful labels.
+- Magick.NET (Magick.NET-Q8-AnyCPU, one version across all projects) is the only image library. Do not add ImageSharp (SixLabors); its 4.x releases require a license key.
 - For new packages, models, and media, verify origin, license, redistribution terms, and required notices. Update `THIRD-PARTY-NOTICES.md` and documentation when needed. Models must be usable locally; do not add network access during normal app use.
 - Report when tests or builds could not be run rather than claiming successful validation.
 - Do not alter unrelated or pre-existing user changes.

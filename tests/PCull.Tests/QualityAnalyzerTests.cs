@@ -1,8 +1,6 @@
 using System.IO;
 using System.Threading.Tasks;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
+using ImageMagick;
 using Xunit;
 
 namespace PCull.Tests.Quality
@@ -16,12 +14,13 @@ namespace PCull.Tests.Quality
 
             using var sharp = CreateCheckerboard(256, 256, 8);
             using var msSharp = new MemoryStream();
-            await sharp.SaveAsPngAsync(msSharp);
+            sharp.Write(msSharp, MagickFormat.Png);
             msSharp.Position = 0;
 
-            using var blurredImg = sharp.Clone(ctx => ctx.GaussianBlur(5f));
+            using var blurredImg = (MagickImage)sharp.Clone();
+            blurredImg.GaussianBlur(0, 5);
             using var msBlur = new MemoryStream();
-            await blurredImg.SaveAsPngAsync(msBlur);
+            blurredImg.Write(msBlur, MagickFormat.Png);
             msBlur.Position = 0;
 
             var sharpMetrics = await analyzer.AnalyzeAsync(msSharp);
@@ -36,14 +35,14 @@ namespace PCull.Tests.Quality
         {
             var analyzer = new PCull.Infrastructure.Quality.QualityAnalyzer();
 
-            using var dark = CreateSolid(200, 200, new Rgba32(5,5,5));
-            using var msDark = new MemoryStream(); await dark.SaveAsPngAsync(msDark); msDark.Position = 0;
+            using var dark = CreateSolid(200, 200, 5);
+            using var msDark = new MemoryStream(); dark.Write(msDark, MagickFormat.Png); msDark.Position = 0;
 
             using var normal = CreateCheckerboard(200,200,10);
-            using var msNormal = new MemoryStream(); await normal.SaveAsPngAsync(msNormal); msNormal.Position = 0;
+            using var msNormal = new MemoryStream(); normal.Write(msNormal, MagickFormat.Png); msNormal.Position = 0;
 
-            using var bright = CreateSolid(200,200,new Rgba32(250,250,250));
-            using var msBright = new MemoryStream(); await bright.SaveAsPngAsync(msBright); msBright.Position = 0;
+            using var bright = CreateSolid(200,200,250);
+            using var msBright = new MemoryStream(); bright.Write(msBright, MagickFormat.Png); msBright.Position = 0;
 
             var mDark = await analyzer.AnalyzeAsync(msDark);
             var mNormal = await analyzer.AnalyzeAsync(msNormal);
@@ -59,10 +58,10 @@ namespace PCull.Tests.Quality
             var analyzer = new PCull.Infrastructure.Quality.QualityAnalyzer();
 
             using var clean = CreateCheckerboard(256,256,8);
-            using var msClean = new MemoryStream(); await clean.SaveAsPngAsync(msClean); msClean.Position = 0;
+            using var msClean = new MemoryStream(); clean.Write(msClean, MagickFormat.Png); msClean.Position = 0;
 
             using var noisy = AddNoise(clean);
-            using var msNoisy = new MemoryStream(); await noisy.SaveAsPngAsync(msNoisy); msNoisy.Position = 0;
+            using var msNoisy = new MemoryStream(); noisy.Write(msNoisy, MagickFormat.Png); msNoisy.Position = 0;
 
             var mClean = await analyzer.AnalyzeAsync(msClean);
             var mNoisy = await analyzer.AnalyzeAsync(msNoisy);
@@ -71,47 +70,21 @@ namespace PCull.Tests.Quality
             Assert.True(mClean.Quality > mNoisy.Quality, "Clean image should have higher quality than noisy one");
         }
 
-        private static Image<Rgba32> CreateCheckerboard(int w, int h, int cellSize)
-        {
-            var img = new Image<Rgba32>(w, h);
-            for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
-            {
-                bool white = ((x / cellSize) + (y / cellSize)) % 2 == 0;
-                img[x,y] = white ? new Rgba32(255,255,255) : new Rgba32(0,0,0);
-            }
-            return img;
-        }
+        private static MagickImage CreateCheckerboard(int w, int h, int cellSize) => TestImages.Checkerboard(w, h, cellSize);
 
-        private static Image<Rgba32> CreateSolid(int w, int h, Rgba32 color)
-        {
-            var img = new Image<Rgba32>(w, h);
-            for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++) img[x,y] = color;
-            return img;
-        }
+        private static MagickImage CreateSolid(int w, int h, byte v) => TestImages.Solid(w, h, v, v, v);
 
-        private static Image<Rgba32> AddNoise(Image<Rgba32> src)
+        private static MagickImage AddNoise(MagickImage src)
         {
-            var img = src.Clone();
             var rand = new System.Random(123);
-            img.ProcessPixelRows(accessor =>
+            var data = src.ToByteArray(MagickFormat.Rgb);
+            using var raw = new MagickImage(data, new PixelReadSettings(src.Width, src.Height, StorageType.Char, PixelMapping.RGB));
+            for (int i = 0; i < data.Length; i += 3)
             {
-                for (int y = 0; y < accessor.Height; y++)
-                {
-                    var row = accessor.GetRowSpan(y);
-                    for (int x = 0; x < row.Length; x++)
-                    {
-                        var p = row[x];
-                        byte n = (byte)rand.Next(0,40);
-                        row[x] = new Rgba32(
-                            (byte)System.Math.Min(255, p.R + n),
-                            (byte)System.Math.Min(255, p.G + n),
-                            (byte)System.Math.Min(255, p.B + n));
-                    }
-                }
-            });
-            return img;
+                byte n = (byte)rand.Next(0, 40);
+                for (int c = 0; c < 3; c++) data[i + c] = (byte)System.Math.Min(255, data[i + c] + n);
+            }
+            return new MagickImage(data, new PixelReadSettings(src.Width, src.Height, StorageType.Char, PixelMapping.RGB));
         }
     }
 }

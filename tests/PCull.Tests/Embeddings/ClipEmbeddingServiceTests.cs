@@ -6,9 +6,7 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 using PCull.Ai.Embeddings;
 using PCull.Core.Abstractions;
 using PCull.Core;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
+using ImageMagick;
 using Xunit;
 
 namespace PCull.Tests.Embeddings
@@ -19,13 +17,8 @@ namespace PCull.Tests.Embeddings
         public async Task Preprocessing_ShapeAndValues()
         {
             // white image
-            using var img = new Image<Rgb24>(300, 300);
-            for (int y = 0; y < img.Height; y++)
-            for (int x = 0; x < img.Width; x++)
-                img[x, y] = new Rgb24(255, 255, 255);
-            using var ms = new MemoryStream();
-            img.SaveAsPng(ms);
-            ms.Position = 0;
+            using var img = TestImages.Solid(300, 300, 255, 255, 255);
+            using var ms = TestImages.ToStream(img, MagickFormat.Png);
 
             var engine = new CaptureInferenceEngine(returnVectorLength: 4);
             var repo = new NoopImageRepo();
@@ -51,13 +44,8 @@ namespace PCull.Tests.Embeddings
         [Fact]
         public async Task Embedding_IsL2Normalized_And_Saved()
         {
-            using var img = new Image<Rgb24>(224, 224);
-            for (int y = 0; y < img.Height; y++)
-            for (int x = 0; x < img.Width; x++)
-                img[x, y] = new Rgb24(0, 0, 0);
-            using var ms = new MemoryStream();
-            img.SaveAsPng(ms);
-            ms.Position = 0;
+            using var img = TestImages.Solid(224, 224, 0, 0, 0);
+            using var ms = TestImages.ToStream(img, MagickFormat.Png);
 
             var engine = new ReturnVectorInferenceEngine(new float[] { 3f, 4f });
             var repo = new CaptureImageRepo();

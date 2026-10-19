@@ -1,8 +1,6 @@
 using PCull.Core;
 using PCull.Infrastructure;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Formats.Png;
+using ImageMagick;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -25,13 +23,13 @@ namespace PCull.Tests
 
                 var p1 = Path.Combine(root, "a.JPG");
                 var p2 = Path.Combine(nested, "b.png");
-                using (var img = new Image<Rgba32>(100, 80))
+                using (var img = TestImages.Solid(100, 80, 10, 20, 30))
                 {
-                    img.SaveAsPng(p2, new PngEncoder());
+                    TestImages.Save(img, p2, MagickFormat.Png);
                 }
-                using (var img = new Image<Rgba32>(200, 150))
+                using (var img = TestImages.Solid(200, 150, 10, 20, 30))
                 {
-                    await img.SaveAsJpegAsync(p1);
+                    TestImages.Save(img, p1, MagickFormat.Jpeg);
                 }
 
                 var scanner = new FolderScanner();

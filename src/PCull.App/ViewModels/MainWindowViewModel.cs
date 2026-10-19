@@ -72,6 +72,16 @@ namespace PCull.App.ViewModels
         private string _statusText = string.Empty;
         public string StatusText { get => _statusText; private set => SetProperty(ref _statusText, value); }
 
+        private bool _isProgressIndeterminate;
+        public bool IsProgressIndeterminate { get => _isProgressIndeterminate; private set => SetProperty(ref _isProgressIndeterminate, value); }
+
+        private string _folderPath = string.Empty;
+        public string FolderPath { get => _folderPath; set { if (SetProperty(ref _folderPath, value)) OnPropertyChanged(nameof(HasFolder)); } }
+        public bool HasFolder => !string.IsNullOrWhiteSpace(FolderPath);
+
+        private string _analysisFailures = string.Empty;
+        public string AnalysisFailures { get => _analysisFailures; private set => SetProperty(ref _analysisFailures, value); }
+
         public MainWindowViewModel(CullingPipeline pipeline, IImageRepository repo, IThumbnailService thumb, IDeletionService deleter)
         {
             _pipeline = pipeline; _repo = repo; _thumb = thumb; _deleter = deleter;
@@ -80,23 +90,46 @@ namespace PCull.App.ViewModels
         [RelayCommand]
         public async Task StartScanAsync(string folder)
         {
-            if (string.IsNullOrWhiteSpace(folder)) return;
+            if (string.IsNullOrWhiteSpace(folder) || IsScanning) return;
             try
             {
                 IsScanning = true;
+                Progress = 0;
+                IsProgressIndeterminate = true;
+                StatusText = "Searching photos...";
+                AnalysisFailures = string.Empty;
                 _cts = new CancellationTokenSource();
                 var cache = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "pCull","cache");
                 var progress = new Progress<PCull.Infrastructure.Pipeline.PipelineProgress>(p => {
                     var completed = p.Processed + p.Errors;
-                    Progress = p.Scanned > 0 ? completed * 100d / p.Scanned : 0;
-                    StatusText = $"Scanning... {completed}/{p.Scanned}";
+                    IsProgressIndeterminate = p.Phase != PipelinePhase.Analyzing;
+                    if (p.Phase == PipelinePhase.Analyzing)
+                    {
+                        Progress = p.Scanned > 0 ? completed * 100d / p.Scanned : 0;
+                        StatusText = $"Analyzing photo {completed} of {p.Scanned}";
+                    }
+                    else if (p.Phase == PipelinePhase.Grouping)
+                        StatusText = "Comparing photos...";
+                    else if (p.Phase == PipelinePhase.Saving)
+                        StatusText = "Saving sets...";
+                    else
+                        StatusText = $"Searching photos... {p.Scanned} found";
                 });
 
-                await _pipeline.RunAsync(folder, cache, progress, _cts.Token, _clusterOptions);
+                var result = await _pipeline.RunAsync(folder, cache, progress, _cts.Token, _clusterOptions);
                 await LoadSetsAsync();
-                StatusText = "Scan complete";
+                StatusText = result.Failures.Count == 0
+                    ? "Analysis complete"
+                    : $"Analysis complete — {result.Failures.Count} photos could not be analyzed";
+                AnalysisFailures = string.Join(Environment.NewLine,
+                    result.Failures.Select(f => $"{f.Path}: {f.Message}"));
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException) { StatusText = "Analysis cancelled"; }
+            catch (Exception ex)
+            {
+                Serilog.Log.Error(ex, "Photo analysis failed");
+                StatusText = $"Analysis failed: {ex.Message}";
+            }
             finally { IsScanning = false; _cts = null; }
         }
 
@@ -325,7 +358,7 @@ namespace PCull.App.ViewModels
             if (SelectedSet == null) return;
             foreach (var image in SelectedSet.Members)
             {
-                var decision = image.Recommendation.ToString();
+                var decision = image.Recommendation == Recommendation.Delete ? "Delete" : "Keep";
                 await _repo.SaveUserDecisionAsync(image.Id, decision);
                 image.UserDecision = decision;
             }

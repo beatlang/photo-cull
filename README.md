@@ -16,7 +16,9 @@ When upgrading from an earlier release, copy the contents of its local app-data 
 
 Grouping checks criteria in order and stops at the first match: capture-time window, dHash, pHash, then AI embedding similarity. Hashes and embeddings are loaded only when earlier criteria did not match. The details panel shows the criterion that connected each directly matched photo in red, previously checked non-matches in green, later skipped checks in blue, and unavailable measurements in gray. Set membership can also be transitive through a chain of direct matches.
 
+Workflow: choose a folder, start analysis, review the resulting sets, then use **Delete marked** after confirming the preview. Photos are kept unless explicitly marked **Delete**; older Review or Favorite decisions are treated as Keep. Use `K` to keep, `D` or `Delete` to mark deletion, arrow keys to navigate, and `C` to toggle comparison.
+
 Image formats supported
 
-- ImageSharp-handled: JPEG, PNG, WEBP, TIFF
-- Magick.NET (when available): HEIC/HEIF, RAW formats (CR2, CR3, DNG, NEF, ARW, ORF, RAF) — requires native delegates (libheif, raw decoders) available to ImageMagick/Magick.NET on the host system.
+- Magick.NET (all decoding): JPEG, PNG, WEBP, TIFF
+- HEIC/HEIF, RAW formats (CR2, CR3, DNG, NEF, ARW, ORF, RAF) — requires native delegates (libheif, raw decoders) available to ImageMagick/Magick.NET on the host system.
