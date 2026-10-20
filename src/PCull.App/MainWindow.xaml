@@ -4,284 +4,296 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:PCull.App"
     Title="pCull">
-    <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
-          KeyDown="RootGrid_KeyDown" Padding="16">
-        <Grid.Resources>
-        <local:ScoreConverter x:Key="ScoreConverter"/>
-        <local:DecisionBrushConverter x:Key="DecisionBrushConverter"/>
-        <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
-        <local:MatchStatusBrushConverter x:Key="MatchStatusBrushConverter"/>
-        <Style x:Key="PanelStyle" TargetType="Border">
-            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
-            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}"/>
-        </Style>
-        <Style x:Key="ActionButtonStyle" TargetType="Button">
-            <Setter Property="MinWidth" Value="88"/>
-            <Setter Property="Padding" Value="14,8"/>
-        </Style>
-        </Grid.Resources>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+    <UserControl x:Name="ResponsiveHost" SizeChanged="ResponsiveHost_SizeChanged">
+        <Grid x:Name="RootGrid" Background="Transparent" Padding="12" KeyDown="RootGrid_KeyDown">
+            <VisualStateManager.VisualStateGroups>
+                <VisualStateGroup x:Name="WidthStates">
+                    <VisualState x:Name="Narrow"><VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="0" /></VisualState.StateTriggers></VisualState>
+                    <VisualState x:Name="Medium"><VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="800" /></VisualState.StateTriggers></VisualState>
+                    <VisualState x:Name="Wide"><VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="1200" /></VisualState.StateTriggers></VisualState>
+                </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+            <Grid.Resources>
+                <local:StepGlyphConverter x:Key="LocalStepGlyphConverter" />
+                <local:ScoreTextConverter x:Key="LocalScoreTextConverter" />
+                <local:ObjectToVisibilityConverter x:Key="LocalObjectToVisibilityConverter" />
+            </Grid.Resources>
+            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
 
-        <Border Style="{StaticResource PanelStyle}" Padding="12" Margin="0,0,0,12">
-            <Grid>
+            <Border Grid.Row="0" Style="{StaticResource CardPanelStyle}" Padding="12,10">
+                <Grid x:Name="ToolbarGrid" ColumnSpacing="12" RowSpacing="8">
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
+                        <Image Width="32" Height="32" Source="ms-appx:///Assets/PCullLogo.svg" AutomationProperties.Name="pCull logo" />
+                        <TextBlock Text="pCull" Style="{StaticResource SubtitleTextBlockStyle}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel x:Name="StepFlow" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+                        <Border Style="{StaticResource StepChipStyle}" AutomationProperties.Name="1. Choose folder" ToolTipService.ToolTip="Choose folder"><StackPanel Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <Border Width="20" Height="20" CornerRadius="10" Background="{Binding CurrentStep, Converter={StaticResource StepStateBrushConverter}, ConverterParameter=1}">
+                                    <TextBlock Text="{Binding CurrentStep, Converter={StaticResource LocalStepGlyphConverter}, ConverterParameter=1}" Foreground="{Binding CurrentStep, Converter={StaticResource StepStateForegroundConverter}, ConverterParameter=1}" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <TextBlock x:Name="StepLabel1" Text="Choose folder" Style="{StaticResource CaptionStyle}" />
+                            </StackPanel>
+                            <Button x:Name="PickFolderBtn" Content="Choose folder" Click="PickFolder_Click" AccessKey="F" AutomationProperties.Name="Choose folder" ToolTipService.ToolTip="Choose the folder to analyze (Alt+F)" />
+                            <TextBlock Text="{Binding FolderPath}" MaxWidth="180" TextTrimming="CharacterEllipsis" Style="{StaticResource CaptionStyle}" ToolTipService.ToolTip="{Binding FolderPath}" />
+                        </StackPanel></Border>
+                        <Border Style="{StaticResource StepChipStyle}" AutomationProperties.Name="2. Analyze" ToolTipService.ToolTip="Analyze photos"><StackPanel Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <Border Width="20" Height="20" CornerRadius="10" Background="{Binding CurrentStep, Converter={StaticResource StepStateBrushConverter}, ConverterParameter=2}">
+                                    <TextBlock Text="{Binding CurrentStep, Converter={StaticResource LocalStepGlyphConverter}, ConverterParameter=2}" Foreground="{Binding CurrentStep, Converter={StaticResource StepStateForegroundConverter}, ConverterParameter=2}" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <TextBlock x:Name="StepLabel2" Text="Analyze" Style="{StaticResource CaptionStyle}" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Button x:Name="StartAnalysisBtn" Content="Analyze" Click="StartAnalysis_Click" AccessKey="A" AutomationProperties.Name="Start analysis" ToolTipService.ToolTip="Start analysis (Alt+A)" />
+                                <Button x:Name="CancelBtn" Content="Cancel" Visibility="Collapsed" AutomationProperties.Name="Cancel analysis" ToolTipService.ToolTip="Cancel the current analysis" />
+                            </StackPanel>
+                            <ProgressBar x:Name="ProgressBar" Height="4" Width="120" Minimum="0" Maximum="100" Value="{Binding Progress}" IsIndeterminate="{Binding IsProgressIndeterminate}" AutomationProperties.Name="Analysis progress" />
+                            <TextBlock Text="{Binding StatusText}" MaxWidth="180" TextTrimming="CharacterEllipsis" Style="{StaticResource CaptionStyle}" ToolTipService.ToolTip="{Binding StatusText}" />
+                        </StackPanel></Border>
+                        <Border Style="{StaticResource StepChipStyle}" AutomationProperties.Name="3. Review sets" ToolTipService.ToolTip="Review sets"><StackPanel Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <Border Width="20" Height="20" CornerRadius="10" Background="{Binding CurrentStep, Converter={StaticResource StepStateBrushConverter}, ConverterParameter=3}">
+                                    <TextBlock Text="{Binding CurrentStep, Converter={StaticResource LocalStepGlyphConverter}, ConverterParameter=3}" Foreground="{Binding CurrentStep, Converter={StaticResource StepStateForegroundConverter}, ConverterParameter=3}" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <TextBlock x:Name="StepLabel3" Text="Review sets" Style="{StaticResource CaptionStyle}" />
+                            </StackPanel>
+                            <TextBlock x:Name="SummaryText" Text="{Binding Summary}" MaxWidth="180" TextTrimming="CharacterEllipsis" Style="{StaticResource CaptionStyle}" ToolTipService.ToolTip="{Binding Summary}" />
+                        </StackPanel></Border>
+                        <Border Style="{StaticResource StepChipStyle}" AutomationProperties.Name="4. Delete" ToolTipService.ToolTip="Delete marked photos"><StackPanel Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <Border Width="20" Height="20" CornerRadius="10" Background="{Binding CurrentStep, Converter={StaticResource StepStateBrushConverter}, ConverterParameter=4}">
+                                    <TextBlock Text="{Binding CurrentStep, Converter={StaticResource LocalStepGlyphConverter}, ConverterParameter=4}" Foreground="{Binding CurrentStep, Converter={StaticResource StepStateForegroundConverter}, ConverterParameter=4}" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <TextBlock x:Name="StepLabel4" Text="Delete" Style="{StaticResource CaptionStyle}" />
+                            </StackPanel>
+                            <Button x:Name="DeleteBtn" IsEnabled="False" AutomationProperties.Name="Delete marked photos" ToolTipService.ToolTip="Review and delete all marked photos">
+                                <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE74D;" /><TextBlock Text="Delete" />
+                                    <Border x:Name="DeleteCountPill" Style="{StaticResource PillStyle}" Background="{ThemeResource AccentFillColorDefaultBrush}">
+                                        <TextBlock Text="{Binding MarkedForDeleteCount}" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+                                    </Border>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel></Border>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="4">
+                        <ToggleButton x:Name="SetsToggleBtn" Style="{StaticResource ToggleIconButtonStyle}" Visibility="Collapsed" Click="SetsToggle_Click" AutomationProperties.Name="Show sets" ToolTipService.ToolTip="Show sets (S)"><FontIcon Glyph="&#xE8FD;" /></ToggleButton>
+                        <ToggleButton x:Name="DetailsToggleBtn" Style="{StaticResource ToggleIconButtonStyle}" Visibility="Collapsed" Click="DetailsToggle_Click" AutomationProperties.Name="Show photo details" ToolTipService.ToolTip="Show details (I)"><FontIcon Glyph="&#xE946;" /></ToggleButton>
+                        <Button x:Name="SettingsBtn" ToolTipService.ToolTip="Configure photo grouping" AutomationProperties.Name="Grouping settings"><FontIcon Glyph="&#xE713;" /></Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <InfoBar x:Name="StatusInfoBar" Grid.Row="1" Margin="0,12,0,0" IsClosable="True" IsOpen="False" Severity="Warning" Title="Some photos could not be analyzed" AutomationProperties.Name="Photo analysis warnings" />
+            <Grid x:Name="ContentGrid" Grid.Row="2" Margin="0,12,0,0" ColumnSpacing="12">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="220"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition x:Name="SetsCol" Width="0.9*" MinWidth="220" MaxWidth="320" />
+                    <ColumnDefinition Width="3*" MinWidth="320" />
+                    <ColumnDefinition x:Name="DetailsCol" Width="1.1*" MinWidth="260" MaxWidth="360" />
                 </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
-                            Spacing="10" Margin="0,0,16,0">
-                    <Image Width="36" Height="36" Source="ms-appx:///Assets/PCullLogo.svg"
-                           AutomationProperties.Name="PCull logo"/>
-                    <TextBlock Text="PCull" FontSize="20" FontWeight="SemiBold"
-                               VerticalAlignment="Center"/>
-                </StackPanel>
-                <StackPanel Grid.Column="1" Spacing="2" Margin="0,0,12,0">
-                    <TextBlock Text="1. Choose folder" FontWeight="SemiBold"/>
-                    <Button x:Name="PickFolderBtn" Content="Choose folder" Click="PickFolder_Click"
-                            AutomationProperties.Name="Choose folder"
-                            ToolTipService.ToolTip="Choose the folder to analyze"/>
-                    <TextBlock Text="{Binding FolderPath}" TextTrimming="CharacterEllipsis"
-                               MaxWidth="220" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                </StackPanel>
-                <StackPanel Grid.Column="2" Spacing="2" Margin="0,0,12,0">
-                    <TextBlock Text="2. Start analysis" FontWeight="SemiBold"/>
-                    <Button x:Name="StartAnalysisBtn" Content="Start analysis" Click="StartAnalysis_Click"
-                            AutomationProperties.Name="Start analysis"/>
-                </StackPanel>
-                <Button x:Name="CancelBtn" Grid.Column="3" Content="Cancel" Margin="8,0,0,0"
-                        AutomationProperties.Name="Cancel analysis"
-                        ToolTipService.ToolTip="Cancel the current analysis"/>
-                <ProgressBar x:Name="ProgressBar" Grid.Column="4" Height="6" VerticalAlignment="Center"
-                             Margin="18,0,8,0" Minimum="0" Maximum="100"
-                             Value="{Binding Progress}" IsIndeterminate="{Binding IsProgressIndeterminate}"
-                             AutomationProperties.Name="Analysis progress"/>
-                <TextBlock Grid.Column="5" Text="{Binding StatusText}" VerticalAlignment="Center"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,16,0"
-                           ToolTipService.ToolTip="{Binding AnalysisFailures}"/>
-                <StackPanel Grid.Column="6" Orientation="Horizontal" HorizontalAlignment="Right"
-                            VerticalAlignment="Center" Spacing="16">
-                    <TextBlock Text="3. Review sets" VerticalAlignment="Center"
-                               FontWeight="SemiBold"/>
-                    <TextBlock Text="{Binding Summary}" VerticalAlignment="Center"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    <Button x:Name="SettingsBtn" ToolTipService.ToolTip="Configure photo grouping">
-                        <SymbolIcon Symbol="Setting"/>
-                        <AutomationProperties.Name>Grouping settings</AutomationProperties.Name>
-                    </Button>
-                    <TextBlock Text="4." VerticalAlignment="Center" FontWeight="SemiBold"/>
-                    <Button x:Name="DeleteBtn"
-                            AutomationProperties.Name="Delete marked photos"
-                            Background="{ThemeResource AccentFillColorDefaultBrush}"
-                            Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"
-                            ToolTipService.ToolTip="Review and delete all marked photos">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Delete marked ("/>
-                            <TextBlock Text="{Binding MarkedForDeleteCount}"/>
-                            <TextBlock Text=")"/>
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
-            </Grid>
-        </Border>
 
-        <Grid Grid.Row="1" ColumnSpacing="12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="250"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="270"/>
-            </Grid.ColumnDefinitions>
+                <Border x:Name="SetsCard" Grid.Column="0" Style="{StaticResource CardPanelStyle}" Padding="8">
+                    <Grid>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                        <Grid Margin="8,4,8,12" ColumnSpacing="8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="Sets to review" Style="{StaticResource SectionHeaderStyle}" VerticalAlignment="Center" />
+                            <Border Grid.Column="1" Style="{StaticResource PillStyle}" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" AutomationProperties.Name="Set count">
+                                <TextBlock Text="{Binding Sets.Count}" Style="{StaticResource CaptionStyle}" />
+                            </Border>
+                        </Grid>
+                        <ListView x:Name="SetsList" Grid.Row="1" ItemsSource="{Binding Sets}" SelectedItem="{Binding SelectedSet, Mode=TwoWay}" SelectionMode="Single" AutomationProperties.Name="Sets to review">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="Padding" Value="0" /><Setter Property="Margin" Value="3" />
+                                    <Setter Property="CornerRadius" Value="8" /><Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="BorderThickness" Value="2" /><Setter Property="BorderBrush" Value="Transparent" />
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Padding="4" ColumnSpacing="10" AutomationProperties.Name="{Binding Name}">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="56" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                        <Border Width="56" Height="56" CornerRadius="6" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                            <Grid>
+                                                <Image Source="{Binding CoverUri}" Stretch="UniformToFill" AutomationProperties.Name="Set cover photo" />
+                                                <FontIcon Glyph="&#xE734;" FontSize="12" Margin="4" HorizontalAlignment="Right" VerticalAlignment="Top" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" AutomationProperties.Name="Best shot" />
+                                            </Grid>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="{Binding Name}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding Name}" />
+                                            <StackPanel Orientation="Horizontal"><TextBlock Text="{Binding Members.Count}" Style="{StaticResource CaptionStyle}" /><TextBlock Text=" photos" Style="{StaticResource CaptionStyle}" /></StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Grid>
+                </Border>
 
-            <Border Grid.Column="0" Style="{StaticResource PanelStyle}" Padding="8">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <TextBlock Text="Sets to review" FontSize="18" FontWeight="SemiBold" Margin="8,4,8,12"/>
-                    <ListView x:Name="SetsList" Grid.Row="1" ItemsSource="{Binding Sets}"
-                              SelectedItem="{Binding SelectedSet, Mode=TwoWay}" SelectionMode="Single">
+                <Grid x:Name="StageGrid" Grid.Column="1">
+                    <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition x:Name="FilmstripRow" Height="120" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                    <Border Grid.Row="0" Background="{ThemeResource SolidBackgroundFillColorBaseBrush}" CornerRadius="{ThemeResource OverlayCornerRadius}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                        <Grid x:Name="PreviewHost" Background="Transparent">
+                            <ScrollViewer x:Name="ImageScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" ZoomMode="Enabled" MinZoomFactor="0.1">
+                                <Image x:Name="MainImage" Stretch="Uniform" AutomationProperties.Name="Selected photo preview" />
+                            </ScrollViewer>
+                            <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12" Style="{StaticResource PillStyle}"
+                                    Background="{Binding SelectedImage.Badge, Converter={StaticResource DecisionBrushConverter}}"
+                                    Visibility="{Binding SelectedImage, Converter={StaticResource LocalObjectToVisibilityConverter}}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="{Binding SelectedImage.Badge, Converter={StaticResource DecisionGlyphConverter}}" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" FontSize="12" />
+                                    <TextBlock Text="{Binding SelectedImage.Badge}" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+                                </StackPanel>
+                            </Border>
+                            <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12" Style="{StaticResource PillStyle}"
+                                    Background="{ThemeResource SystemFillColorCautionBrush}"
+                                    Visibility="{Binding SelectedImage.IsBestShot, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE734;" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" FontSize="12" />
+                                    <TextBlock Text="Best shot" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+                                </StackPanel>
+                            </Border>
+                            <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" Padding="24" MaxWidth="480" Visibility="Collapsed">
+                                <FontIcon Glyph="&#xEB9F;" FontSize="64" Opacity="0.6" HorizontalAlignment="Center" AutomationProperties.Name="Photo" />
+                                <TextBlock x:Name="EmptyTitle" Text="Pick a folder to find photos to cull" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center" />
+                                <TextBlock Text="pCull groups similar images so you can quickly keep the best ones." Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center" />
+                                <Button Content="Choose folder" Click="PickFolder_Click" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Center" AutomationProperties.Name="Choose folder" />
+                                <StackPanel Spacing="4" HorizontalAlignment="Center" Margin="0,8,0,0">
+                                    <TextBlock Text="How it works" Style="{StaticResource SectionHeaderStyle}" HorizontalAlignment="Center" />
+                                    <TextBlock Text="1  Choose a photo folder" Style="{StaticResource CaptionStyle}" />
+                                    <TextBlock Text="2  Analyze photos on this device" Style="{StaticResource CaptionStyle}" />
+                                    <TextBlock Text="3  Review sets and mark decisions" Style="{StaticResource CaptionStyle}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <ListView x:Name="Filmstrip" Grid.Row="1" Margin="0" ItemsSource="{Binding SelectedSet.Members}" SelectedItem="{Binding SelectedImage, Mode=TwoWay}" SelectionMode="Single"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Disabled" AutomationProperties.Name="Photos in selected set">
+                        <ListView.ItemsPanel><ItemsPanelTemplate><ItemsStackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ListView.ItemsPanel>
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="Padding" Value="0" /><Setter Property="Margin" Value="3" />
+                                <Setter Property="CornerRadius" Value="8" /><Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="BorderThickness" Value="2" /><Setter Property="BorderBrush" Value="Transparent" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <Grid Padding="4" ColumnSpacing="10">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="60"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Border Width="60" Height="60" CornerRadius="6"
-                                            Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-                                        <Image Source="{Binding CoverUri}" Stretch="UniformToFill"/>
+                                <Grid Width="96" Height="96" Margin="3" AutomationProperties.Name="{Binding FileName}">
+                                    <Border CornerRadius="6" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                        <Image Source="{Binding ThumbnailUri}" Stretch="UniformToFill" Opacity="{Binding IsMarkedForDelete, Converter={StaticResource DecisionOpacityConverter}}" AutomationProperties.Name="Photo thumbnail" />
                                     </Border>
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Name}" TextWrapping="Wrap"
-                                                   FontWeight="SemiBold"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding Members.Count}"
-                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                            <TextBlock Text=" photos"
-                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="4" Style="{StaticResource PillStyle}" Background="{Binding Badge, Converter={StaticResource DecisionBrushConverter}}">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <FontIcon Glyph="{Binding Badge, Converter={StaticResource DecisionGlyphConverter}}" FontSize="10" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+                                            <TextBlock Text="{Binding Badge}" FontSize="10" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
                                         </StackPanel>
-                                    </StackPanel>
+                                    </Border>
+                                    <FontIcon Glyph="&#xE734;" Visibility="{Binding IsBestShot, Converter={StaticResource BoolToVisibilityConverter}}" Foreground="{ThemeResource SystemFillColorCautionBrush}" FontSize="16" Margin="5,4" HorizontalAlignment="Left" VerticalAlignment="Top" AutomationProperties.Name="Best shot" />
                                 </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" Margin="0,0,0,4">
+                        <Button x:Name="KeepBtn" Style="{StaticResource ActionButtonStyle}" AutomationProperties.Name="Keep this photo" ToolTipService.ToolTip="Keep this photo (K)">
+                            <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE73E;" /><TextBlock Text="Keep" /><Border Style="{StaticResource KeycapStyle}"><TextBlock Text="K" FontSize="11" FontFamily="Consolas" /></Border></StackPanel>
+                        </Button>
+                        <Button x:Name="MarkDeleteBtn" Style="{StaticResource ActionButtonStyle}" AutomationProperties.Name="Mark photo for deletion" ToolTipService.ToolTip="Mark this photo for deletion (D or Delete)">
+                            <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE74D;" /><TextBlock Text="Delete" /><Border Style="{StaticResource KeycapStyle}"><TextBlock Text="D" FontSize="11" FontFamily="Consolas" /></Border></StackPanel>
+                        </Button>
+                        <StackPanel x:Name="KeyHints" Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                <Border Style="{StaticResource KeycapStyle}"><TextBlock Text="&#x2190;" FontSize="11" FontFamily="Consolas" /></Border>
+                                <Border Style="{StaticResource KeycapStyle}"><TextBlock Text="&#x2192;" FontSize="11" FontFamily="Consolas" /></Border>
+                                <TextBlock Text="photo" Style="{StaticResource CaptionStyle}" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                <Border Style="{StaticResource KeycapStyle}"><TextBlock Text="&#x2191;" FontSize="11" FontFamily="Consolas" /></Border>
+                                <Border Style="{StaticResource KeycapStyle}"><TextBlock Text="&#x2193;" FontSize="11" FontFamily="Consolas" /></Border>
+                                <TextBlock Text="set" Style="{StaticResource CaptionStyle}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
                 </Grid>
-            </Border>
 
-            <Grid Grid.Column="1">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <Grid x:Name="PreviewHost">
-                    <ScrollViewer x:Name="ImageScroll" HorizontalScrollBarVisibility="Auto"
-                                  VerticalScrollBarVisibility="Auto" ZoomMode="Enabled" MinZoomFactor="0.1">
-                        <Image x:Name="MainImage" Stretch="Uniform"/>
+                <Border x:Name="DetailsCard" Grid.Column="2" Style="{StaticResource CardPanelStyle}" Padding="16">
+                    <ScrollViewer x:Name="DetailsScroll" VerticalScrollBarVisibility="Auto" IsTabStop="True" AutomationProperties.Name="Photo details">
+                        <StackPanel Spacing="16">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Photo details" Style="{StaticResource SectionHeaderStyle}" />
+                                <TextBlock x:Name="FileNameText" Text="No photo selected" FontSize="16" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding SelectedImage.FileName}" FontWeight="SemiBold" />
+                                <TextBlock x:Name="InfoText" Text="" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                            <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Quality scores" Style="{StaticResource SectionHeaderStyle}" />
+                                <Grid ColumnSpacing="8" RowSpacing="8">
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource CardPanelStyle}" Padding="8"><StackPanel Spacing="4">
+                                        <TextBlock Text="Sharpness" Style="{StaticResource CaptionStyle}" />
+                                        <TextBlock Text="{Binding SelectedImage.Scores.Sharpness, Converter={StaticResource LocalScoreTextConverter}}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                        <ProgressBar Height="4" Maximum="100" Value="{Binding SelectedImage.Scores.Sharpness, Converter={StaticResource ScoreConverter}}" AutomationProperties.Name="Sharpness score" />
+                                    </StackPanel></Border>
+                                    <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource CardPanelStyle}" Padding="8"><StackPanel Spacing="4">
+                                        <TextBlock Text="Exposure" Style="{StaticResource CaptionStyle}" />
+                                        <TextBlock Text="{Binding SelectedImage.Scores.Exposure, Converter={StaticResource LocalScoreTextConverter}}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                        <ProgressBar Height="4" Maximum="100" Value="{Binding SelectedImage.Scores.Exposure, Converter={StaticResource ScoreConverter}}" AutomationProperties.Name="Exposure score" />
+                                    </StackPanel></Border>
+                                    <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource CardPanelStyle}" Padding="8"><StackPanel Spacing="4">
+                                        <TextBlock Text="Noise" Style="{StaticResource CaptionStyle}" />
+                                        <TextBlock Text="{Binding SelectedImage.Scores.Noise, Converter={StaticResource LocalScoreTextConverter}}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                        <ProgressBar Height="4" Maximum="100" Value="{Binding SelectedImage.Scores.Noise, Converter={StaticResource ScoreConverter}}" AutomationProperties.Name="Noise score" />
+                                    </StackPanel></Border>
+                                    <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource CardPanelStyle}" Padding="8"><StackPanel Spacing="4">
+                                        <TextBlock Text="Quality" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                        <TextBlock Text="{Binding SelectedImage.Scores.Quality, Converter={StaticResource LocalScoreTextConverter}}" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                        <ProgressBar Height="4" Maximum="100" Value="{Binding SelectedImage.Scores.Quality, Converter={StaticResource ScoreConverter}}" AutomationProperties.Name="Overall quality score" />
+                                    </StackPanel></Border>
+                                </Grid>
+                            </StackPanel>                            <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Why is this photo in the set?" Style="{StaticResource SectionHeaderStyle}" AutomationProperties.Name="Grouping criteria for selected photo" />
+                                <TextBlock Text="{Binding MatchDetailsStatus}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <ItemsControl ItemsSource="{Binding SelectedImageMatchReasons}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="{ThemeResource OverlayCornerRadius}" Padding="10" Margin="0,0,0,8">
+                                                <StackPanel Spacing="8">
+                                                    <TextBlock Text="{Binding FileName}" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{Binding FileName}" />
+                                                    <ItemsControl ItemsSource="{Binding Criteria}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Border Style="{StaticResource PillStyle}" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Margin="0,2">
+                                                                    <Grid ColumnSpacing="8">
+                                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="10" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                                                        <Ellipse Width="8" Height="8" Fill="{Binding Status, Converter={StaticResource MatchStatusBrushConverter}}" VerticalAlignment="Center" AutomationProperties.Name="{Binding Status}" />
+                                                                        <StackPanel Grid.Column="1" Spacing="2">
+                                                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                                            <TextBlock Text="{Binding Measurement}" Style="{StaticResource CaptionStyle}" TextTrimming="CharacterEllipsis" />
+                                                                        </StackPanel>
+                                                                        <TextBlock Grid.Column="2" Text="{Binding Status}" VerticalAlignment="Center" Style="{StaticResource CaptionStyle}" />
+                                                                    </Grid>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="Sets are connected through direct matches; a chain can include photos that do not match each other directly." TextWrapping="Wrap" Style="{StaticResource CaptionStyle}" />
+                            </StackPanel>
+                        </StackPanel>
                     </ScrollViewer>
-                    <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                Spacing="10" Visibility="Collapsed">
-                        <TextBlock x:Name="EmptyTitle" Text="Pick a folder to find photos to cull"
-                                   FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                        <TextBlock Text="pCull groups similar images so you can quickly keep the best ones."
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                   HorizontalAlignment="Center"/>
-                            <Button Content="Choose folder" Click="PickFolder_Click"
-                                HorizontalAlignment="Center"/>
-                    </StackPanel>
-                </Grid>
-
-                <ListView x:Name="Filmstrip" Grid.Row="1" Height="112" Margin="0,12,0,12"
-                          ItemsSource="{Binding SelectedSet.Members}"
-                          SelectedItem="{Binding SelectedImage, Mode=TwoWay}"
-                          SelectionMode="Single" ScrollViewer.HorizontalScrollBarVisibility="Auto">
-                    <ListView.ItemsPanel>
-                        <ItemsPanelTemplate><ItemsStackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                    </ListView.ItemsPanel>
-                    <ListView.ItemTemplate>
-                        <DataTemplate>
-                            <Grid Width="92" Height="92" Margin="3">
-                                <Border CornerRadius="6" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-                                    <Image Source="{Binding ThumbnailUri}" Stretch="UniformToFill"/>
-                                </Border>
-                                <Border VerticalAlignment="Bottom" Background="{Binding Badge, Converter={StaticResource DecisionBrushConverter}}"
-                                        CornerRadius="0,0,6,6" Padding="5,2">
-                                    <TextBlock Text="{Binding Badge}" FontSize="10" Foreground="White"
-                                               HorizontalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="★" Visibility="{Binding IsBestShot, Converter={StaticResource BoolToVisibilityConverter}}" Foreground="Gold"
-                                           FontSize="18" Margin="5,2" HorizontalAlignment="Left"
-                                           VerticalAlignment="Top"/>
-                            </Grid>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
-
-                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
-                    <Button x:Name="KeepBtn" Content="Keep" Style="{StaticResource ActionButtonStyle}"
-                            ToolTipService.ToolTip="Keep this photo (K)"/>
-                    <Button x:Name="MarkDeleteBtn" Content="Delete" Style="{StaticResource ActionButtonStyle}"
-                            AutomationProperties.Name="Mark photo for deletion"
-                            ToolTipService.ToolTip="Mark this photo for deletion (D or Delete)"/>
-                </StackPanel>
+                </Border>
             </Grid>
-
-            <Border Grid.Column="2" Style="{StaticResource PanelStyle}" Padding="16">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                  <StackPanel Spacing="12">
-                    <TextBlock Text="Photo details" FontSize="18" FontWeight="SemiBold"/>
-                    <TextBlock x:Name="FileNameText" Text="No photo selected" FontSize="16"
-                               TextWrapping="Wrap" FontWeight="SemiBold"/>
-                    <TextBlock x:Name="InfoText" Text="" TextWrapping="Wrap"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
-                    <TextBlock Text="Quality scores" FontWeight="SemiBold"/>
-                    <TextBlock Text="Sharpness"/>
-                    <ProgressBar Maximum="100" Value="{Binding SelectedImage.Scores.Sharpness, Converter={StaticResource ScoreConverter}}"/>
-                    <TextBlock Text="Exposure"/>
-                    <ProgressBar Maximum="100" Value="{Binding SelectedImage.Scores.Exposure, Converter={StaticResource ScoreConverter}}"/>
-                    <TextBlock Text="Noise"/>
-                    <ProgressBar Maximum="100" Value="{Binding SelectedImage.Scores.Noise, Converter={StaticResource ScoreConverter}}"/>
-                    <TextBlock Text="Quality"/>
-                    <ProgressBar Maximum="100" Value="{Binding SelectedImage.Scores.Quality, Converter={StaticResource ScoreConverter}}"/>
-                    <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
-                    <TextBlock Text="Why is this photo in the set?" FontWeight="SemiBold"
-                               AutomationProperties.Name="Grouping criteria for selected photo"/>
-                    <TextBlock Text="{Binding MatchDetailsStatus}" TextWrapping="Wrap"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <Ellipse Width="9" Height="9" Fill="IndianRed" VerticalAlignment="Center"/>
-                            <TextBlock Text="Connected" FontSize="11"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <Ellipse Width="9" Height="9" Fill="MediumSeaGreen" VerticalAlignment="Center"/>
-                            <TextBlock Text="Not matched" FontSize="11"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <Ellipse Width="9" Height="9" Fill="Gray" VerticalAlignment="Center"/>
-                            <TextBlock Text="Unavailable" FontSize="11"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <Ellipse Width="9" Height="9" Fill="DodgerBlue" VerticalAlignment="Center"/>
-                            <TextBlock Text="Skipped" FontSize="11"/>
-                        </StackPanel>
-                    </StackPanel>
-                    <ItemsControl ItemsSource="{Binding SelectedImageMatchReasons}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
-                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                        BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,8">
-                                    <StackPanel Spacing="8">
-                                        <TextBlock Text="{Binding FileName}" FontWeight="SemiBold"
-                                                   TextWrapping="Wrap" FontSize="14"/>
-                                        <ItemsControl ItemsSource="{Binding Criteria}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Grid ColumnSpacing="8" Padding="0,3">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="16"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <Ellipse Width="10" Height="10"
-                                                                 Fill="{Binding Status, Converter={StaticResource MatchStatusBrushConverter}}"
-                                                                 VerticalAlignment="Center"
-                                                                 AutomationProperties.Name="{Binding Status}"/>
-                                                        <StackPanel Grid.Column="1">
-                                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                                                            <TextBlock Text="{Binding Measurement}" FontSize="12"
-                                                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                                        </StackPanel>
-                                                        <TextBlock Grid.Column="2" Text="{Binding Status}"
-                                                                   VerticalAlignment="Center" FontSize="12"
-                                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <TextBlock Text="Sets are connected through direct matches; a chain can include photos that do not match each other directly."
-                               TextWrapping="Wrap" FontSize="12"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                  </StackPanel>
-                </ScrollViewer>
-            </Border>
         </Grid>
-    </Grid>
+    </UserControl>
 </Window>

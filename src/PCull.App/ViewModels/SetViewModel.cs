@@ -12,6 +12,7 @@ namespace PCull.App.ViewModels
 
         public ObservableCollection<ImageViewModel> Members { get; } = new();
         public ObservableCollection<ClusterMatch> Matches { get; } = new();
+        public string PhotoCountText => $"{Members.Count} photos";
         public string? CoverUri => Members.FirstOrDefault(m => m.IsBestShot)?.ThumbnailUri
             ?? Members.FirstOrDefault()?.ThumbnailUri;
 

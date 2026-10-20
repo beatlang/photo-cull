@@ -5,6 +5,7 @@ using PCull.Core.Abstractions;
 using PCull.Core.Culling;
 using PCull.Infrastructure.Pipeline;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Threading;
 using System.Threading.Tasks;
 using System;
@@ -58,7 +59,15 @@ namespace PCull.App.ViewModels
         public double Progress { get => _progress; set => SetProperty(ref _progress, value); }
 
         private bool _isScanning;
-        public bool IsScanning { get => _isScanning; set => SetProperty(ref _isScanning, value); }
+        public bool IsScanning
+        {
+            get => _isScanning;
+            set
+            {
+                if (SetProperty(ref _isScanning, value))
+                    OnPropertyChanged(nameof(CurrentStep));
+            }
+        }
 
         private int _hiddenSetCount;
         public int HiddenSetCount { get => _hiddenSetCount; private set => SetProperty(ref _hiddenSetCount, value); }
@@ -67,7 +76,15 @@ namespace PCull.App.ViewModels
         public string Summary { get => _summary; private set => SetProperty(ref _summary, value); }
 
         private int _markedForDeleteCount;
-        public int MarkedForDeleteCount { get => _markedForDeleteCount; private set => SetProperty(ref _markedForDeleteCount, value); }
+        public int MarkedForDeleteCount
+        {
+            get => _markedForDeleteCount;
+            private set
+            {
+                if (SetProperty(ref _markedForDeleteCount, value))
+                    OnPropertyChanged(nameof(CurrentStep));
+            }
+        }
 
         private string _statusText = string.Empty;
         public string StatusText { get => _statusText; private set => SetProperty(ref _statusText, value); }
@@ -76,8 +93,34 @@ namespace PCull.App.ViewModels
         public bool IsProgressIndeterminate { get => _isProgressIndeterminate; private set => SetProperty(ref _isProgressIndeterminate, value); }
 
         private string _folderPath = string.Empty;
-        public string FolderPath { get => _folderPath; set { if (SetProperty(ref _folderPath, value)) OnPropertyChanged(nameof(HasFolder)); } }
+        public string FolderPath
+        {
+            get => _folderPath;
+            set
+            {
+                if (SetProperty(ref _folderPath, value))
+                {
+                    OnPropertyChanged(nameof(HasFolder));
+                    OnPropertyChanged(nameof(CurrentStep));
+                }
+            }
+        }
+
         public bool HasFolder => !string.IsNullOrWhiteSpace(FolderPath);
+        public bool HasSets => Sets.Count > 0;
+        public int CurrentStep
+        {
+            get
+            {
+                if (!HasFolder)
+                    return 1;
+                if (IsScanning)
+                    return 2;
+                if (MarkedForDeleteCount > 0)
+                    return 4;
+                return HasSets ? 3 : 2;
+            }
+        }
 
         private string _analysisFailures = string.Empty;
         public string AnalysisFailures { get => _analysisFailures; private set => SetProperty(ref _analysisFailures, value); }
@@ -85,6 +128,13 @@ namespace PCull.App.ViewModels
         public MainWindowViewModel(CullingPipeline pipeline, IImageRepository repo, IThumbnailService thumb, IDeletionService deleter)
         {
             _pipeline = pipeline; _repo = repo; _thumb = thumb; _deleter = deleter;
+            Sets.CollectionChanged += Sets_CollectionChanged;
+        }
+
+        private void Sets_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            OnPropertyChanged(nameof(HasSets));
+            OnPropertyChanged(nameof(CurrentStep));
         }
 
         [RelayCommand]

@@ -2,6 +2,9 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.UI.Xaml.Data;
+using System.Globalization;
+using System.Runtime.InteropServices;
 using PCull.App.Helpers;
 using PCull.App.Settings;
 using PCull.App.ViewModels;
@@ -19,6 +22,17 @@ namespace PCull.App
         private readonly string? _startupError;
         private readonly CullingSettingsStore _settingsStore;
         private CullingSettings _cullingSettings;
+        private ResponsiveLayoutMode _layoutMode = ResponsiveLayoutMode.Wide;
+        private bool _setsOpen;
+        private bool _detailsOpen;
+        private readonly NativeMethods.SubclassProc _windowSubclassProc = WindowSubclassProc;
+
+        private enum ResponsiveLayoutMode
+        {
+            Wide,
+            Medium,
+            Narrow
+        }
 
         public MainWindow(string? startupError, CullingSettingsStore settingsStore, CullingSettings cullingSettings)
         {
@@ -26,6 +40,11 @@ namespace PCull.App
             _settingsStore = settingsStore;
             _cullingSettings = cullingSettings;
             InitializeComponent();
+            SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
+            ConfigureWindowSize();
+            ResponsiveHost.SizeChanged += ResponsiveHost_SizeChanged;
+            SetsList.SelectionChanged += SetsList_SelectionChanged;
+            Closed += MainWindow_Closed;
             AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "PCull.ico"));
             RootGrid.Loaded += MainWindow_Loaded;
 
@@ -50,6 +69,7 @@ namespace PCull.App
             VM?.UpdateClusterOptions(_cullingSettings.ToClusterOptions());
             UpdateScanControls();
             UpdateSettingsButton();
+            UpdateResponsiveLayout(ResponsiveHost.ActualWidth);
         }
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -70,6 +90,7 @@ namespace PCull.App
 
             if (VM == null) return;
             VM.PropertyChanged += VM_PropertyChanged;
+            UpdateFailureInfoBar();
             await VM.LoadSetsAsync();
             UpdateSelection();
             UpdateEmptyState();
@@ -87,6 +108,15 @@ namespace PCull.App
                 e.PropertyName == nameof(MainWindowViewModel.HasFolder) ||
                 e.PropertyName == nameof(MainWindowViewModel.MarkedForDeleteCount))
                 UpdateScanControls();
+            if (e.PropertyName == nameof(MainWindowViewModel.AnalysisFailures))
+                UpdateFailureInfoBar();
+        }
+
+        private void UpdateFailureInfoBar()
+        {
+            var failures = VM?.AnalysisFailures ?? string.Empty;
+            StatusInfoBar.Message = failures;
+            StatusInfoBar.IsOpen = !string.IsNullOrWhiteSpace(failures);
         }
 
         private async Task PickFolder()
@@ -120,6 +150,9 @@ namespace PCull.App
             CancelBtn.Visibility = VM.IsScanning ? Visibility.Visible : Visibility.Collapsed;
             CancelBtn.IsEnabled = VM.IsScanning;
             DeleteBtn.IsEnabled = !VM.IsScanning && VM.MarkedForDeleteCount > 0;
+            DeleteBtn.Style = VM.MarkedForDeleteCount > 0
+                ? Application.Current.Resources["AccentButtonStyle"] as Style
+                : null;
         }
 
         private async Task MarkDecision(string action)
@@ -176,12 +209,35 @@ namespace PCull.App
             var isEmpty = VM?.Sets.Count == 0;
             EmptyState.Visibility = isEmpty ? Visibility.Visible : Visibility.Collapsed;
             EmptyTitle.Text = VM?.HiddenSetCount > 0
-                ? "Nothing to clean up – all sets are fine"
+                ? "Nothing to clean up \u2013 all sets are fine"
                 : "Pick a folder to find photos to cull";
         }
 
         private void RootGrid_KeyDown(object sender, KeyRoutedEventArgs e)
         {
+            if (e.OriginalSource is TextBox)
+                return;
+
+            if (e.Key == VirtualKey.Escape && CloseResponsivePanels())
+            {
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == VirtualKey.S && SetsToggleBtn.Visibility == Visibility.Visible)
+            {
+                SetSetsPanelOpen(!_setsOpen);
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == VirtualKey.I && DetailsToggleBtn.Visibility == Visibility.Visible)
+            {
+                SetDetailsPanelOpen(!_detailsOpen);
+                e.Handled = true;
+                return;
+            }
+
             if (VM == null) return;
             switch (e.Key)
             {
@@ -195,6 +251,236 @@ namespace PCull.App
                 default: return;
             }
             e.Handled = true;
+        }
+
+        private void ConfigureWindowSize()
+        {
+            var handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            var dpi = NativeMethods.GetDpiForWindow(handle);
+            var scale = dpi == 0 ? 1d : dpi / 96d;
+            AppWindow.Resize(new Windows.Graphics.SizeInt32(
+                (int)Math.Round(1360 * scale),
+                (int)Math.Round(860 * scale)));
+
+            if (!NativeMethods.SetWindowSubclass(handle, _windowSubclassProc, new UIntPtr(1), UIntPtr.Zero))
+                Serilog.Log.Warning("Could not install the minimum-window-size handler");
+        }
+
+        private void MainWindow_Closed(object sender, WindowEventArgs args)
+        {
+            var handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            NativeMethods.RemoveWindowSubclass(handle, _windowSubclassProc, new UIntPtr(1));
+        }
+
+        private static IntPtr WindowSubclassProc(IntPtr handle, uint message, UIntPtr wParam, IntPtr lParam, UIntPtr subclassId, UIntPtr refData)
+        {
+            const uint wmGetMinMaxInfo = 0x0024;
+            if (message == wmGetMinMaxInfo)
+            {
+                var info = Marshal.PtrToStructure<MinMaxInfo>(lParam);
+                var dpi = NativeMethods.GetDpiForWindow(handle);
+                var scale = dpi == 0 ? 1d : dpi / 96d;
+                info.MinTrackSize.X = (int)Math.Ceiling(720 * scale);
+                info.MinTrackSize.Y = (int)Math.Ceiling(520 * scale);
+                Marshal.StructureToPtr(info, lParam, false);
+            }
+
+            return NativeMethods.DefSubclassProc(handle, message, wParam, lParam);
+        }
+
+        private void ResponsiveHost_SizeChanged(object sender, SizeChangedEventArgs e)
+            => UpdateResponsiveLayout(e.NewSize.Width);
+
+        private void UpdateResponsiveLayout(double width)
+        {
+            if (width <= 0)
+                width = ResponsiveHost.ActualWidth;
+            if (width <= 0)
+                return;
+
+            var nextMode = width >= 1200
+                ? ResponsiveLayoutMode.Wide
+                : width >= 800 ? ResponsiveLayoutMode.Medium : ResponsiveLayoutMode.Narrow;
+            if (_layoutMode != nextMode)
+            {
+                _layoutMode = nextMode;
+                _setsOpen = false;
+                _detailsOpen = false;
+                SetsToggleBtn.IsChecked = false;
+                DetailsToggleBtn.IsChecked = false;
+            }
+
+            VisualStateManager.GoToState(ResponsiveHost, nextMode.ToString(), true);
+            ToolbarGrid.RowDefinitions[1].Height = nextMode == ResponsiveLayoutMode.Narrow
+                ? GridLength.Auto
+                : new GridLength(0);
+            Grid.SetRow(StepFlow, nextMode == ResponsiveLayoutMode.Narrow ? 1 : 0);
+            Grid.SetColumn(StepFlow, nextMode == ResponsiveLayoutMode.Narrow ? 0 : 1);
+            Grid.SetColumnSpan(StepFlow, nextMode == ResponsiveLayoutMode.Narrow ? 3 : 1);
+
+            var compact = nextMode != ResponsiveLayoutMode.Wide;
+            StepLabel1.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+            StepLabel2.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+            StepLabel3.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+            StepLabel4.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+            SummaryText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+            KeyHints.Visibility = nextMode == ResponsiveLayoutMode.Narrow ? Visibility.Collapsed : Visibility.Visible;
+            FilmstripRow.Height = new GridLength(nextMode == ResponsiveLayoutMode.Narrow ? 108 : 120);
+
+            switch (nextMode)
+            {
+                case ResponsiveLayoutMode.Wide:
+                    SetsCol.Width = new GridLength(0.9, GridUnitType.Star);
+                    SetsCol.MinWidth = 220;
+                    SetsCol.MaxWidth = 320;
+                    DetailsCol.Width = new GridLength(1.1, GridUnitType.Star);
+                    DetailsCol.MinWidth = 260;
+                    DetailsCol.MaxWidth = 360;
+                    SetsToggleBtn.Visibility = Visibility.Collapsed;
+                    DetailsToggleBtn.Visibility = Visibility.Collapsed;
+                    break;
+                case ResponsiveLayoutMode.Medium:
+                    SetsCol.Width = _setsOpen ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+                    SetsCol.MinWidth = _setsOpen ? 0 : 200;
+                    SetsCol.MaxWidth = _setsOpen ? 0 : 240;
+                    DetailsCol.Width = new GridLength(0);
+                    DetailsCol.MinWidth = 0;
+                    DetailsCol.MaxWidth = 0;
+                    SetsToggleBtn.Visibility = Visibility.Visible;
+                    DetailsToggleBtn.Visibility = Visibility.Visible;
+                    break;
+                default:
+                    SetsCol.Width = new GridLength(0);
+                    SetsCol.MinWidth = 0;
+                    SetsCol.MaxWidth = 0;
+                    DetailsCol.Width = new GridLength(0);
+                    DetailsCol.MinWidth = 0;
+                    DetailsCol.MaxWidth = 0;
+                    SetsToggleBtn.Visibility = Visibility.Visible;
+                    DetailsToggleBtn.Visibility = Visibility.Visible;
+                    break;
+            }
+
+            ApplyPanelVisibility();
+        }
+
+        private void SetsToggle_Click(object sender, RoutedEventArgs e)
+            => SetSetsPanelOpen(SetsToggleBtn.IsChecked == true);
+
+        private void DetailsToggle_Click(object sender, RoutedEventArgs e)
+            => SetDetailsPanelOpen(DetailsToggleBtn.IsChecked == true);
+
+        private void SetSetsPanelOpen(bool isOpen)
+        {
+            _setsOpen = _layoutMode != ResponsiveLayoutMode.Wide && isOpen;
+            if (_setsOpen)
+            {
+                _detailsOpen = false;
+                DetailsToggleBtn.IsChecked = false;
+            }
+            SetsToggleBtn.IsChecked = _setsOpen;
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(SetsToggleBtn, _setsOpen ? "Hide sets" : "Show sets");
+            ToolTipService.SetToolTip(SetsToggleBtn, _setsOpen ? "Hide sets (S)" : "Show sets (S)");
+            ApplyPanelVisibility();
+            if (_setsOpen)
+                SetsList.Focus(FocusState.Programmatic);
+            else if (SetsToggleBtn.Visibility == Visibility.Visible)
+                SetsToggleBtn.Focus(FocusState.Programmatic);
+        }
+
+        private void SetDetailsPanelOpen(bool isOpen)
+        {
+            _detailsOpen = _layoutMode != ResponsiveLayoutMode.Wide && isOpen;
+            if (_detailsOpen)
+            {
+                _setsOpen = false;
+                SetsToggleBtn.IsChecked = false;
+            }
+            DetailsToggleBtn.IsChecked = _detailsOpen;
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(DetailsToggleBtn, _detailsOpen ? "Hide photo details" : "Show photo details");
+            ToolTipService.SetToolTip(DetailsToggleBtn, _detailsOpen ? "Hide details (I)" : "Show details (I)");
+            ApplyPanelVisibility();
+            if (_detailsOpen)
+                DetailsScroll.Focus(FocusState.Programmatic);
+            else if (DetailsToggleBtn.Visibility == Visibility.Visible)
+                DetailsToggleBtn.Focus(FocusState.Programmatic);
+        }
+
+        private bool CloseResponsivePanels()
+        {
+            if (!_setsOpen && !_detailsOpen)
+                return false;
+
+            var focusDetails = _detailsOpen;
+            _setsOpen = false;
+            _detailsOpen = false;
+            SetsToggleBtn.IsChecked = false;
+            DetailsToggleBtn.IsChecked = false;
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(SetsToggleBtn, "Show sets");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(DetailsToggleBtn, "Show photo details");
+            ToolTipService.SetToolTip(SetsToggleBtn, "Show sets (S)");
+            ToolTipService.SetToolTip(DetailsToggleBtn, "Show details (I)");
+            ApplyPanelVisibility();
+            if (focusDetails && DetailsToggleBtn.Visibility == Visibility.Visible)
+                DetailsToggleBtn.Focus(FocusState.Programmatic);
+            else if (SetsToggleBtn.Visibility == Visibility.Visible)
+                SetsToggleBtn.Focus(FocusState.Programmatic);
+            return true;
+        }
+
+        private void SetsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_layoutMode != ResponsiveLayoutMode.Wide && SetsList.SelectedItem != null && _setsOpen)
+            {
+                _setsOpen = false;
+                SetsToggleBtn.IsChecked = false;
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(SetsToggleBtn, "Show sets");
+                ToolTipService.SetToolTip(SetsToggleBtn, "Show sets (S)");
+                ApplyPanelVisibility();
+                KeepBtn.Focus(FocusState.Programmatic);
+            }
+        }
+
+        private void ApplyPanelVisibility()
+        {
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(SetsToggleBtn, _setsOpen ? "Hide sets" : "Show sets");
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(DetailsToggleBtn, _detailsOpen ? "Hide photo details" : "Show photo details");
+            ToolTipService.SetToolTip(SetsToggleBtn, _setsOpen ? "Hide sets (S)" : "Show sets (S)");
+            ToolTipService.SetToolTip(DetailsToggleBtn, _detailsOpen ? "Hide details (I)" : "Show details (I)");
+            var wide = _layoutMode == ResponsiveLayoutMode.Wide;
+            var narrow = _layoutMode == ResponsiveLayoutMode.Narrow;
+            if (_layoutMode == ResponsiveLayoutMode.Medium)
+            {
+                SetsCol.Width = _setsOpen ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+                SetsCol.MinWidth = _setsOpen ? 0 : 200;
+                SetsCol.MaxWidth = _setsOpen ? 0 : 240;
+            }
+            var setsOverlay = !wide && _setsOpen;
+            var detailsOverlay = !wide && _detailsOpen;
+
+            SetsCard.Visibility = wide || !narrow || _setsOpen ? Visibility.Visible : Visibility.Collapsed;
+            DetailsCard.Visibility = wide || _detailsOpen ? Visibility.Visible : Visibility.Collapsed;
+            ConfigureCardPosition(SetsCard, 0, setsOverlay, true);
+            ConfigureCardPosition(DetailsCard, 2, detailsOverlay, false);
+        }
+
+        private void ConfigureCardPosition(Border card, int normalColumn, bool overlay, bool alignLeft)
+        {
+            Grid.SetColumn(card, overlay ? 1 : normalColumn);
+            card.HorizontalAlignment = overlay ? (alignLeft ? HorizontalAlignment.Left : HorizontalAlignment.Right) : HorizontalAlignment.Stretch;
+            card.VerticalAlignment = VerticalAlignment.Stretch;
+            Microsoft.UI.Xaml.Controls.Canvas.SetZIndex(card, overlay ? 5 : 0);
+            if (overlay)
+            {
+                var maximum = Math.Max(0, StageGrid.ActualWidth * 0.9);
+                card.MaxWidth = maximum;
+                card.Width = Math.Min(alignLeft ? 280 : 300, maximum);
+            }
+            else
+            {
+                card.Width = double.NaN;
+                card.MaxWidth = double.PositiveInfinity;
+            }
         }
 
         private async Task ShowDeleteDialog()
@@ -331,7 +617,7 @@ namespace PCull.App
         private void UpdateSettingsButton()
         {
             ToolTipService.SetToolTip(SettingsBtn,
-                $"Grouping: {_cullingSettings.BurstWindowSeconds:g}s · compare ≤{_cullingSettings.ComparisonWindowSeconds:g}s · pHash ≤{_cullingSettings.PHashHammingThreshold} · dHash ≤{_cullingSettings.DHashHammingThreshold} · AI ≥{_cullingSettings.EmbeddingCosineThreshold:0.00}");
+                $"Grouping: {_cullingSettings.BurstWindowSeconds:g}s \u00B7 compare \u2264{_cullingSettings.ComparisonWindowSeconds:g}s \u00B7 pHash \u2264{_cullingSettings.PHashHammingThreshold} \u00B7 dHash \u2264{_cullingSettings.DHashHammingThreshold} \u00B7 AI \u2265{_cullingSettings.EmbeddingCosineThreshold:0.00}");
         }
 
         private static void AddSettingsField(StackPanel panel, string label, string description, NumberBox input)
@@ -358,5 +644,73 @@ namespace PCull.App
             };
             await dialog.ShowAsync();
         }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct NativePoint
+        {
+            public int X;
+            public int Y;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MinMaxInfo
+        {
+            public NativePoint Reserved;
+            public NativePoint MaxSize;
+            public NativePoint MaxPosition;
+            public NativePoint MinTrackSize;
+            public NativePoint MaxTrackSize;
+        }
+
+        private static class NativeMethods
+        {
+            [UnmanagedFunctionPointer(CallingConvention.Winapi)]
+            public delegate IntPtr SubclassProc(IntPtr handle, uint message, UIntPtr wParam, IntPtr lParam, UIntPtr subclassId, UIntPtr refData);
+
+            [DllImport("user32.dll")]
+            public static extern uint GetDpiForWindow(IntPtr handle);
+
+            [DllImport("comctl32.dll", SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool SetWindowSubclass(IntPtr handle, SubclassProc callback, UIntPtr subclassId, UIntPtr refData);
+
+            [DllImport("comctl32.dll", SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool RemoveWindowSubclass(IntPtr handle, SubclassProc callback, UIntPtr subclassId);
+
+            [DllImport("comctl32.dll")]
+            public static extern IntPtr DefSubclassProc(IntPtr handle, uint message, UIntPtr wParam, IntPtr lParam);
+        }
+    }
+
+    public sealed class StepGlyphConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, string language)
+        {
+            if (value is int currentStep && int.TryParse(parameter?.ToString(), out var step))
+                return currentStep > step ? "\u2713" : step.ToString(CultureInfo.InvariantCulture);
+            return string.Empty;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, string language)
+            => throw new NotSupportedException();
+    }
+
+    public sealed class ScoreTextConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, string language)
+            => value is IFormattable score ? score.ToString("0.0", CultureInfo.CurrentCulture) : string.Empty;
+
+        public object ConvertBack(object value, Type targetType, object parameter, string language)
+            => throw new NotSupportedException();
+    }
+
+    public sealed class ObjectToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, string language)
+            => value == null ? Visibility.Collapsed : Visibility.Visible;
+
+        public object ConvertBack(object value, Type targetType, object parameter, string language)
+            => throw new NotSupportedException();
     }
 }

@@ -36,6 +36,7 @@ namespace PCull.App.ViewModels
         public string FileName => System.IO.Path.GetFileName(Path);
         public string InfoLine => $"{Width}x{Height} · {SizeBytes / (1024d * 1024d):F1} MB";
         public string Badge => EffectiveDecision;
+        public bool IsMarkedForDelete => string.Equals(EffectiveDecision, "Delete", StringComparison.OrdinalIgnoreCase);
         public string EffectiveDecision =>
             string.Equals(UserDecision, "Delete", StringComparison.OrdinalIgnoreCase)
                 ? "Delete"
@@ -54,6 +55,7 @@ namespace PCull.App.ViewModels
                 {
                     OnPropertyChanged(nameof(EffectiveDecision));
                     OnPropertyChanged(nameof(Badge));
+                    OnPropertyChanged(nameof(IsMarkedForDelete));
                 }
             }
         }
