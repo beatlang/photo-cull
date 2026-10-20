@@ -19,6 +19,8 @@ namespace PCull.Infrastructure.Pipeline
         public int Scanned { get; set; }
         public int Processed { get; set; }
         public int Errors { get; set; }
+        public int SavedSets { get; set; }
+        public int TotalSets { get; set; }
     }
 
     public record PipelineFailure(string Path, string Message);
@@ -226,9 +228,9 @@ namespace PCull.Infrastructure.Pipeline
 
             // persist sets
             p.Phase = PipelinePhase.Saving;
+            p.SavedSets = 0;
             Report();
             cancellationToken.ThrowIfCancellationRequested();
-            await _imageRepo.ClearSetsAsync();
             var membersByCluster = clusters.Select(_ => new List<SetMember>()).ToArray();
             var matchesByCluster = clusters.Select(_ => new List<ClusterMatch>()).ToArray();
             var clusterIndexByImageId = new Dictionary<long, int>();
@@ -259,15 +261,20 @@ namespace PCull.Infrastructure.Pipeline
                 }
             }
 
-            int setIndex = 1;
+            var sets = new List<SetData>(clusters.Count);
             for (int clusterIndex = 0; clusterIndex < clusters.Count; clusterIndex++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var name = $"set-{setIndex++}";
-                long setId = await _imageRepo.CreateSetAsync(name);
-                await _imageRepo.SaveSetMembersAsync(setId, membersByCluster[clusterIndex]);
-                await _imageRepo.SaveSetMatchesAsync(setId, matchesByCluster[clusterIndex]);
+                sets.Add(new SetData($"set-{clusterIndex + 1}", membersByCluster[clusterIndex], matchesByCluster[clusterIndex]));
             }
+
+            p.TotalSets = sets.Count;
+            Report();
+            await _imageRepo.ReplaceSetsAsync(sets, savedSets =>
+            {
+                p.SavedSets = savedSets;
+                Report();
+            }, cancellationToken);
 
             if (images.Count > 0 || Directory.Exists(folder))
                 await _imageRepo.RemoveImagesNotInPathsAsync(images.Select(image => image.Path), cancellationToken);

@@ -446,6 +446,97 @@ WHERE NOT EXISTS (SELECT 1 FROM ScanPaths WHERE ScanPaths.Path = Images.Path)";
             return Convert.ToInt64(idObj);
         }
 
+        public async Task ReplaceSetsAsync(IEnumerable<SetData> sets, Action<int>? progress = null, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(sets);
+            var setList = sets.ToArray();
+            using var conn = GetConnection();
+            using var tx = conn.BeginTransaction();
+
+            foreach (var commandText in new[] { "DELETE FROM SetMatches", "DELETE FROM SetMembers", "DELETE FROM Sets" })
+            {
+                using var delete = conn.CreateCommand();
+                delete.Transaction = tx;
+                delete.CommandText = commandText;
+                await delete.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            using var createSet = conn.CreateCommand();
+            createSet.Transaction = tx;
+            createSet.CommandText = "INSERT INTO Sets (Name) VALUES (@name); SELECT last_insert_rowid();";
+            var nameParameter = createSet.Parameters.Add("@name", SqliteType.Text);
+
+            using var saveMember = conn.CreateCommand();
+            saveMember.Transaction = tx;
+            saveMember.CommandText = "INSERT INTO SetMembers (SetId, ImageId, IsBestShot, Recommendation) VALUES (@set,@img,@best,@rec)";
+            var memberSetParameter = saveMember.Parameters.Add("@set", SqliteType.Integer);
+            var imageParameter = saveMember.Parameters.Add("@img", SqliteType.Integer);
+            var bestShotParameter = saveMember.Parameters.Add("@best", SqliteType.Integer);
+            var recommendationParameter = saveMember.Parameters.Add("@rec", SqliteType.Integer);
+
+            using var saveMatch = conn.CreateCommand();
+            saveMatch.Transaction = tx;
+            saveMatch.CommandText = @"INSERT INTO SetMatches (
+                SetId, ImageId, MatchedImageId, CaptureTimeDifferenceSeconds, BurstWindowSeconds,
+                PHashDistance, PHashThreshold, DHashDistance, DHashThreshold,
+                EmbeddingCosineSimilarity, EmbeddingCosineThreshold, EvaluatedCriteria)
+                VALUES (@set,@image,@matched,@timeDiff,@timeWindow,@pHashDist,@pHashThreshold,
+                @dHashDist,@dHashThreshold,@embedding,@embeddingThreshold,@evaluated)";
+            var matchSetParameter = saveMatch.Parameters.Add("@set", SqliteType.Integer);
+            var matchImageParameter = saveMatch.Parameters.Add("@image", SqliteType.Integer);
+            var matchedImageParameter = saveMatch.Parameters.Add("@matched", SqliteType.Integer);
+            var timeDifferenceParameter = saveMatch.Parameters.Add("@timeDiff", SqliteType.Real);
+            var timeWindowParameter = saveMatch.Parameters.Add("@timeWindow", SqliteType.Real);
+            var pHashDistanceParameter = saveMatch.Parameters.Add("@pHashDist", SqliteType.Integer);
+            var pHashThresholdParameter = saveMatch.Parameters.Add("@pHashThreshold", SqliteType.Integer);
+            var dHashDistanceParameter = saveMatch.Parameters.Add("@dHashDist", SqliteType.Integer);
+            var dHashThresholdParameter = saveMatch.Parameters.Add("@dHashThreshold", SqliteType.Integer);
+            var embeddingParameter = saveMatch.Parameters.Add("@embedding", SqliteType.Real);
+            var embeddingThresholdParameter = saveMatch.Parameters.Add("@embeddingThreshold", SqliteType.Real);
+            var evaluatedCriteriaParameter = saveMatch.Parameters.Add("@evaluated", SqliteType.Integer);
+
+            for (var index = 0; index < setList.Length; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var set = setList[index];
+                nameParameter.Value = set.Name;
+                var setId = Convert.ToInt64(await createSet.ExecuteScalarAsync(cancellationToken));
+
+                memberSetParameter.Value = setId;
+                foreach (var member in set.Members)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    imageParameter.Value = member.ImageId;
+                    bestShotParameter.Value = member.IsBestShot ? 1 : 0;
+                    recommendationParameter.Value = (int)member.Recommendation;
+                    await saveMember.ExecuteNonQueryAsync(cancellationToken);
+                }
+
+                matchSetParameter.Value = setId;
+                foreach (var match in set.Matches)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    matchImageParameter.Value = match.ImageId;
+                    matchedImageParameter.Value = match.MatchedImageId;
+                    timeDifferenceParameter.Value = DbValue(match.CaptureTimeDifferenceSeconds);
+                    timeWindowParameter.Value = DbValue(match.BurstWindowSeconds);
+                    pHashDistanceParameter.Value = DbValue(match.PHashDistance);
+                    pHashThresholdParameter.Value = DbValue(match.PHashThreshold);
+                    dHashDistanceParameter.Value = DbValue(match.DHashDistance);
+                    dHashThresholdParameter.Value = DbValue(match.DHashThreshold);
+                    embeddingParameter.Value = DbValue(match.EmbeddingCosineSimilarity);
+                    embeddingThresholdParameter.Value = DbValue(match.EmbeddingCosineThreshold);
+                    evaluatedCriteriaParameter.Value = (int)match.EvaluatedCriteria;
+                    await saveMatch.ExecuteNonQueryAsync(cancellationToken);
+                }
+
+                progress?.Invoke(index + 1);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            tx.Commit();
+        }
+
         public async Task SaveSetMembersAsync(long setId, IEnumerable<SetMember> members)
         {
             using var conn = GetConnection();

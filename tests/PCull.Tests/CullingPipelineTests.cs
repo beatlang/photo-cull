@@ -32,6 +32,7 @@ public class CullingPipelineTests
         Assert.Contains(reports, p => p.Phase == PipelinePhase.Analyzing && p.Scanned == 2);
         Assert.Contains(reports, p => p.Phase == PipelinePhase.Grouping && p.Scanned == 2);
         Assert.Contains(reports, p => p.Phase == PipelinePhase.Saving && p.Scanned == 2);
+        Assert.Contains(reports, p => p.Phase == PipelinePhase.Saving && p.SavedSets == p.TotalSets);
         Assert.Equal(new[] { ExistingPath, ExistingPath }, repo.PrunedPaths);
         Assert.All(reports.Skip(1), p => Assert.NotSame(reports[0], p));
     }

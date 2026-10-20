@@ -16,7 +16,6 @@ namespace PCull.App
     public sealed partial class MainWindow : Window
     {
         private MainWindowViewModel? VM => RootGrid?.DataContext as MainWindowViewModel;
-        private bool _syncing;
         private readonly string? _startupError;
         private readonly CullingSettingsStore _settingsStore;
         private CullingSettings _cullingSettings;
@@ -44,16 +43,9 @@ namespace PCull.App
             CancelBtn.Click += (_, __) => VM?.CancelScan();
             KeepBtn.Click += async (_, __) => await MarkDecision("Keep");
             MarkDeleteBtn.Click += async (_, __) => await MarkDecision("Delete");
-            AcceptBtn.Click += async (_, __) => { if (VM != null) await VM.AcceptRecommendationsForSet(); };
-            CompareToggle.Checked += (_, __) => SetCompareVisibility(true);
-            CompareToggle.Unchecked += (_, __) => SetCompareVisibility(false);
             SettingsBtn.Click += async (_, __) => await ShowSettingsDialog();
             DeleteBtn.Click += async (_, __) => await ShowDeleteDialog();
-            CompareLeft.ViewChanged += Compare_ViewChanged_Left;
-            CompareRight.ViewChanged += Compare_ViewChanged_Right;
             MainImage.ImageOpened += (_, _) => FitImageToViewport(ImageScroll, MainImage);
-            CompareLeftImage.ImageOpened += (_, _) => FitImageToViewport(CompareLeft, CompareLeftImage);
-            CompareRightImage.ImageOpened += (_, _) => FitImageToViewport(CompareRight, CompareRightImage);
 
             VM?.UpdateClusterOptions(_cullingSettings.ToClusterOptions());
             UpdateScanControls();
@@ -142,35 +134,15 @@ namespace PCull.App
             if (selected == null)
             {
                 MainImage.Source = null;
-                CompareLeftImage.Source = null;
-                CompareRightImage.Source = null;
                 FileNameText.Text = "No photo selected";
                 InfoText.Text = string.Empty;
                 return;
             }
 
-            if (CompareGrid.Visibility == Visibility.Visible)
-            {
-                MainImage.Source = null;
-                var best = VM?.SelectedSet?.Members.FirstOrDefault(m => m.IsBestShot) ?? selected;
-                SetPreviewSource(CompareLeft, CompareLeftImage, best.Path);
-                SetPreviewSource(CompareRight, CompareRightImage, selected.Path);
-            }
-            else
-            {
-                CompareLeftImage.Source = null;
-                CompareRightImage.Source = null;
-                ImageScroll.ChangeView(null, null, 1f, true);
-                MainImage.Source = CreateBitmap(selected.Path);
-            }
+            ImageScroll.ChangeView(null, null, 1f, true);
+            MainImage.Source = CreateBitmap(selected.Path);
             FileNameText.Text = selected.FileName;
             InfoText.Text = selected.InfoLine;
-        }
-
-        private static void SetPreviewSource(ScrollViewer viewer, Image image, string path)
-        {
-            viewer.ChangeView(null, null, 1f, true);
-            image.Source = CreateBitmap(path);
         }
 
         private static void FitImageToViewport(ScrollViewer viewer, Image image)
@@ -208,13 +180,6 @@ namespace PCull.App
                 : "Pick a folder to find photos to cull";
         }
 
-        private void SetCompareVisibility(bool visible)
-        {
-            CompareGrid.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
-            ImageScroll.Visibility = visible ? Visibility.Collapsed : Visibility.Visible;
-            if (visible) UpdateSelection();
-        }
-
         private void RootGrid_KeyDown(object sender, KeyRoutedEventArgs e)
         {
             if (VM == null) return;
@@ -227,24 +192,9 @@ namespace PCull.App
                 case VirtualKey.K: _ = MarkDecision("Keep"); break;
                 case VirtualKey.D: _ = MarkDecision("Delete"); break;
                 case VirtualKey.Delete: _ = MarkDecision("Delete"); break;
-                case VirtualKey.C: CompareToggle.IsChecked = !CompareToggle.IsChecked; break;
                 default: return;
             }
             e.Handled = true;
-        }
-
-        private void Compare_ViewChanged_Left(object sender, ScrollViewerViewChangedEventArgs e)
-        {
-            if (_syncing) return;
-            try { _syncing = true; CompareRight.ChangeView(CompareLeft.HorizontalOffset, CompareLeft.VerticalOffset, null, true); }
-            finally { _syncing = false; }
-        }
-
-        private void Compare_ViewChanged_Right(object sender, ScrollViewerViewChangedEventArgs e)
-        {
-            if (_syncing) return;
-            try { _syncing = true; CompareLeft.ChangeView(CompareRight.HorizontalOffset, CompareRight.VerticalOffset, null, true); }
-            finally { _syncing = false; }
         }
 
         private async Task ShowDeleteDialog()

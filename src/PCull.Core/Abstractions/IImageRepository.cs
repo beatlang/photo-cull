@@ -10,6 +10,7 @@ namespace PCull.Core.Abstractions
 
     public record SetMember(long ImageId, bool IsBestShot, Recommendation Recommendation);
     public record SetInfo(long Id, string Name);
+    public record SetData(string Name, IReadOnlyCollection<SetMember> Members, IReadOnlyCollection<ClusterMatch> Matches);
 
     public record StoredHashes(long? PHash, long? DHash, long? AHash);
 
@@ -36,6 +37,20 @@ namespace PCull.Core.Abstractions
         Task<long> CreateSetAsync(string name);
         Task SaveSetMembersAsync(long setId, IEnumerable<SetMember> members);
         Task SaveSetMatchesAsync(long setId, IEnumerable<ClusterMatch> matches) => Task.CompletedTask;
+        async Task ReplaceSetsAsync(IEnumerable<SetData> sets, Action<int>? progress = null, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(sets);
+            await ClearSetsAsync();
+            var savedSets = 0;
+            foreach (var set in sets)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var setId = await CreateSetAsync(set.Name);
+                await SaveSetMembersAsync(setId, set.Members);
+                await SaveSetMatchesAsync(setId, set.Matches);
+                progress?.Invoke(++savedSets);
+            }
+        }
         Task<IEnumerable<ClusterMatch>> LoadSetMatchesAsync(long setId) => Task.FromResult<IEnumerable<ClusterMatch>>(Array.Empty<ClusterMatch>());
         Task ClearSetsAsync() => Task.CompletedTask;
         Task<IEnumerable<SetInfo>> ListSetsAsync()

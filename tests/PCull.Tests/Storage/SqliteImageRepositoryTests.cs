@@ -124,6 +124,37 @@ namespace PCull.Tests.Storage
         }
 
         [Fact]
+        public async Task ReplaceSets_ReplacesExistingSetsAndReportsProgress()
+        {
+            var dbPath = Path.Combine(Path.GetTempPath(), $"pcull-test-{Guid.NewGuid()}.db");
+            try
+            {
+                using var repo = new SqliteImageRepository($"Data Source={dbPath}");
+                var imageId = await repo.UpsertImageAsync("/tmp/replacement.jpg", 123, 10, 10, "jpg", DateTime.UtcNow, DateTime.UtcNow);
+                var oldSetId = await repo.CreateSetAsync("set-1");
+                await repo.SaveSetMembersAsync(oldSetId, new[] { new SetMember(imageId, false, PCull.Core.Recommendation.Review) });
+
+                var set = new SetData("set-1", new[] { new SetMember(imageId, true, PCull.Core.Recommendation.Keep) },
+                    Array.Empty<ClusterMatch>());
+                var progress = new List<int>();
+                await repo.ReplaceSetsAsync(new[] { set }, progress.Add);
+                await repo.ReplaceSetsAsync(new[] { set }, progress.Add);
+
+                var savedSet = Assert.Single(await repo.ListSetsAsync());
+                var savedMember = Assert.Single(await repo.LoadSetMembersAsync(savedSet.Id));
+                Assert.Equal("set-1", savedSet.Name);
+                Assert.True(savedMember.IsBestShot);
+                Assert.Equal(PCull.Core.Recommendation.Keep, savedMember.Recommendation);
+                Assert.Equal(new[] { 1, 1 }, progress);
+            }
+            finally
+            {
+                SqliteConnection.ClearAllPools();
+                if (File.Exists(dbPath)) File.Delete(dbPath);
+            }
+        }
+
+        [Fact]
         public async Task RemoveImagesNotInPaths_RemovesOldImagesAndTheirDependentData()
         {
             var dbPath = Path.Combine(Path.GetTempPath(), $"pcull-test-{Guid.NewGuid()}.db");

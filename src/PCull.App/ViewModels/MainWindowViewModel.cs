@@ -95,7 +95,6 @@ namespace PCull.App.ViewModels
             {
                 IsScanning = true;
                 ResetResults();
-                await _repo.ClearSetsAsync();
                 Progress = 0;
                 IsProgressIndeterminate = true;
                 StatusText = "Searching photos...";
@@ -104,7 +103,7 @@ namespace PCull.App.ViewModels
                 var cache = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "pCull","cache");
                 var progress = new Progress<PCull.Infrastructure.Pipeline.PipelineProgress>(p => {
                     var completed = p.Processed + p.Errors;
-                    IsProgressIndeterminate = p.Phase != PipelinePhase.Analyzing;
+                    IsProgressIndeterminate = p.Phase != PipelinePhase.Analyzing && p.Phase != PipelinePhase.Saving;
                     if (p.Phase == PipelinePhase.Analyzing)
                     {
                         Progress = p.Scanned > 0 ? completed * 100d / p.Scanned : 0;
@@ -113,7 +112,12 @@ namespace PCull.App.ViewModels
                     else if (p.Phase == PipelinePhase.Grouping)
                         StatusText = "Comparing photos...";
                     else if (p.Phase == PipelinePhase.Saving)
-                        StatusText = "Saving sets...";
+                    {
+                        Progress = p.TotalSets > 0 ? p.SavedSets * 100d / p.TotalSets : 100;
+                        StatusText = p.TotalSets > 0
+                            ? $"Saving set {p.SavedSets} of {p.TotalSets}"
+                            : "Saving sets...";
+                    }
                     else
                         StatusText = $"Searching photos... {p.Scanned} found";
                 });
@@ -364,18 +368,6 @@ namespace PCull.App.ViewModels
                 : members.Skip(currentIndex + 1).Concat(members.Take(currentIndex + 1))
                     .FirstOrDefault(m => string.IsNullOrEmpty(m.UserDecision));
             if (next != null) SelectedImage = next;
-        }
-
-        [RelayCommand]
-        public async Task AcceptRecommendationsForSet()
-        {
-            if (SelectedSet == null) return;
-            foreach (var image in SelectedSet.Members)
-            {
-                var decision = image.Recommendation == Recommendation.Delete ? "Delete" : "Keep";
-                await _repo.SaveUserDecisionAsync(image.Id, decision);
-                image.UserDecision = decision;
-            }
         }
 
         public async Task<PCull.Core.Abstractions.DeletionPreview> PreviewDeleteAsync()
